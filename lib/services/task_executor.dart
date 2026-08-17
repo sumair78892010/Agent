@@ -591,6 +591,24 @@ Step ${step + 1}/${_aiService.maxSteps}. Look at the text dump and coordinates. 
           break;
 
         case 'done':
+          final completionVerified = await _verifyGoalCompletion(
+            userGoal,
+            screenState,
+            screenContent,
+          );
+          if (!completionVerified) {
+            const blockedResult =
+                'Completion rejected: observable evidence does not prove the root goal is complete.';
+            results.add(blockedResult);
+            _report(blockedResult);
+            telemetry.recordVerification(
+              diagnostic: blockedResult,
+              progressed: false,
+            );
+            consecutiveFailures++;
+            lastFailedAction = 'done';
+            continue;
+          }
           results.add('Task complete: $reasoning');
           _report('Task complete: $reasoning');
           final finalReason = reasoning.trim().isEmpty
@@ -759,6 +777,25 @@ Step ${step + 1}/${_aiService.maxSteps}. Look at the text dump and coordinates. 
       }
 
       if (isComplete) {
+        final completionVerified = await _verifyGoalCompletion(
+          userGoal,
+          screenState,
+          screenContent,
+        );
+        if (!completionVerified) {
+          const blockedResult =
+              'Completion claim rejected: observable evidence does not yet prove the root goal is complete.';
+          results.add(blockedResult);
+          _report(blockedResult);
+          telemetry.recordVerification(
+            diagnostic: blockedResult,
+            progressed: false,
+          );
+          consecutiveFailures++;
+          lastFailedAction = action;
+          continue;
+        }
+
         results.add('Task complete.');
         _report('Task complete.');
         telemetry.finish(status: 'complete', finalResult: 'Done.');
@@ -774,11 +811,10 @@ Step ${step + 1}/${_aiService.maxSteps}. Look at the text dump and coordinates. 
           results,
         );
 
-        // Save to skill memory
+        // Save to skill memory only after independent completion verification.
         await _skillMemory.saveSkill(userGoal, executedSteps);
 
         await _screenService.showToast('Task Complete!');
-        // Wait 4 seconds so the user can see the result before jumping back
         await Future.delayed(const Duration(milliseconds: 900));
         return reasoning.trim().isEmpty ? 'Done.' : reasoning.trim();
       }
@@ -806,6 +842,71 @@ Step ${step + 1}/${_aiService.maxSteps}. Look at the text dump and coordinates. 
         'I could not complete the task within the allowed steps.';
     telemetry.finish(status: 'failed', finalResult: finalMessage);
     return finalMessage;
+  }
+
+  /// Verifies model-declared completion against observable device state.
+  /// A successful native call or `is_complete=true` is never sufficient alone.
+  Future<bool> _verifyGoalCompletion(
+    String userGoal,
+    Map<String, dynamic> screenState,
+    String screenContent,
+  ) async {
+    final goal = userGoal.toLowerCase().trim();
+    final packageName = (screenState['package'] as String? ?? '').toLowerCase();
+    final visible = screenContent.toLowerCase();
+
+    // Opening an app is verified from the actual foreground package or visible
+    // app identity, not from the launcher API's return string.
+    final openMatch = RegExp(
+      r'\b(?:open|launch|start)\s+([a-z0-9][a-z0-9 ._-]{1,40})',
+    ).firstMatch(goal);
+    if (openMatch != null) {
+      final requested = openMatch.group(1)!.trim();
+      final normalizedRequested = requested.replaceAll(
+        RegExp(r'[^a-z0-9]'),
+        '',
+      );
+      final normalizedPackage = packageName.replaceAll(
+        RegExp(r'[^a-z0-9]'),
+        '',
+      );
+      final normalizedVisible = visible.replaceAll(RegExp(r'[^a-z0-9]'), '');
+      return normalizedRequested.isNotEmpty &&
+          (normalizedPackage.contains(normalizedRequested) ||
+              normalizedVisible.contains(normalizedRequested));
+    }
+
+    // Search/find goals require meaningful query/result evidence on screen.
+    final terms = goal
+        .replaceAll(RegExp(r'[^a-z0-9 ]'), ' ')
+        .split(RegExp(r'\s+'))
+        .where((word) => word.length >= 4)
+        .where(
+          (word) => !const {
+            'search',
+            'google',
+            'open',
+            'first',
+            'link',
+            'result',
+            'find',
+            'look',
+            'click',
+            'show',
+            'please',
+            'using',
+            'then',
+          }.contains(word),
+        )
+        .take(6)
+        .toList();
+    if (terms.isNotEmpty) {
+      final matches = terms.where(visible.contains).length;
+      if (matches >= (terms.length >= 3 ? 2 : 1)) return true;
+    }
+
+    // Generic completion still requires non-trivial observable screen state.
+    return visible.trim().length >= 20;
   }
 
   void _report(String message) {
