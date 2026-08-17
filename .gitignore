@@ -27,11 +27,20 @@ migrate_working_dir/
 **/doc/api/
 **/ios/Flutter/.last_build_id
 .dart_tool/
+**/.dart_tool/
 .flutter-plugins-dependencies
 .pub-cache/
 .pub/
 /build/
+**/build/
 /coverage/
+
+# Gradle caches
+.gradle/
+**/.gradle/
+
+# Local Android SDK configuration
+local.properties
 
 # Symbolication related
 app.*.symbols
