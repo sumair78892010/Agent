@@ -155,12 +155,18 @@ class ActionHandler {
 
         case 'click_element':
           final text = action.params['text'] as String? ?? '';
+          final beforeScreen = await _screenAutomation.getScreenDescription();
           final clickSuccess = await _screenAutomation.clickByText(text);
-          final verified = await _verification.verifyElementClicked(text);
+          final verified = clickSuccess
+              ? await _verification.verifyElementClicked(
+                  text,
+                  beforeScreen: beforeScreen,
+                )
+              : false;
           success = clickSuccess && verified;
           result = success
-              ? 'Clicked "$text"'
-              : 'Could not click "$text" or verification failed';
+              ? 'Clicked "$text" and verified a screen-state change'
+              : 'Could not verify click on "$text"';
           break;
 
         case 'type_on_screen':
@@ -181,13 +187,20 @@ class ActionHandler {
           break;
 
         case 'scroll_screen':
+          final beforeScreen = await _screenAutomation.getScreenDescription();
           final direction = action.params['direction'] as String? ?? 'down';
           final scrollSuccess = await _screenAutomation.scroll(direction);
-          final verified = await _verification.verifyScreenAction('scroll', null);
+          final afterScreen = scrollSuccess
+              ? await _screenAutomation.getScreenDescription()
+              : '';
+          final verified = scrollSuccess &&
+              beforeScreen.trim() != afterScreen.trim() &&
+              afterScreen.isNotEmpty &&
+              !afterScreen.contains('Could not read screen');
           success = scrollSuccess && verified;
           result = success
-              ? 'Scrolled $direction'
-              : 'Could not scroll $direction or verification failed';
+              ? 'Scrolled $direction and verified a screen-state change'
+              : 'Could not verify scroll $direction';
           break;
 
         case 'press_back':
