@@ -1570,7 +1570,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
               if (_isLoading) _buildTaskProgressPanel(isDark),
 
-              _buildVoiceControlPanel(isDark),
+              // Voice readiness/status lives in Settings. Keep only the
+              // compact microphone control in the composer.
 
               // Custom Input bar
               _buildInputBar(isDark),
@@ -2573,7 +2574,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         16,
         8,
         16,
-        16 + MediaQuery.viewInsetsOf(context).bottom,
+        16,
       ),
       decoration: const BoxDecoration(color: Colors.transparent),
       child: Column(
