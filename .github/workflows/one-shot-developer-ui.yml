@@ -2,20 +2,24 @@ name: One-shot developer settings cleanup
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
 
 permissions:
   contents: write
 
 jobs:
   cleanup:
-    if: "!contains(github.event.head_commit.message, '[developer-ui]')"
+    if: ${{ !contains(github.event.head_commit.message, '[developer-ui]') }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Simplify Developer Mode UI
-        shell: python
+        shell: bash
         run: |
+          python3 <<'PY'
           from pathlib import Path
           import re
 
@@ -26,7 +30,7 @@ jobs:
               re.S,
           )
 
-          replacement = r'''  Widget _buildDeveloperModeCard() {
+          replacement = '''  Widget _buildDeveloperModeCard() {
     return ValueListenableBuilder<TaskDeveloperSnapshot>(
       valueListenable: TaskTelemetryService.shared.developerState,
       builder: (context, snapshot, _) {
@@ -55,7 +59,6 @@ jobs:
                 controller: _upgradeProblemController,
                 minLines: 2,
                 maxLines: 6,
-                textInputAction: TextInputAction.newline,
                 decoration: InputDecoration(
                   labelText: 'What should Cypher change or fix?',
                   hintText: 'Describe the bug, feature, edit, or improvement...',
@@ -71,8 +74,7 @@ jobs:
               SizedBox(
                 width: double.infinity,
                 child: FilledButton.icon(
-                  onPressed: _upgradeBusy ||
-                          _upgradeProblemController.text.trim().isEmpty
+                  onPressed: _upgradeBusy || _upgradeProblemController.text.trim().isEmpty
                       ? null
                       : _identifyUpgrade,
                   icon: _upgradeBusy
@@ -88,15 +90,13 @@ jobs:
               const SizedBox(height: 10),
               if (snapshot.upgradePlan != null) ...[
                 Text(
-                  snapshot.upgradeStage.isEmpty
-                      ? 'Plan ready'
-                      : snapshot.upgradeStage,
+                  snapshot.upgradeStage.isEmpty ? 'Plan ready' : snapshot.upgradeStage,
                   style: Theme.of(context).textTheme.titleSmall,
                 ),
                 const SizedBox(height: 4),
                 Text(
                   snapshot.upgradeFinalResult.isEmpty
-                      ? 'Cypher will inspect the request, propose a controlled change, validate it, and keep or roll it back.'
+                      ? 'Inspect → propose → validate → keep or roll back.'
                       : snapshot.upgradeFinalResult,
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
@@ -113,7 +113,7 @@ jobs:
               ],
               const SizedBox(height: 8),
               Text(
-                'Changes are bounded to the controlled upgrade workflow. Validation failure must roll the change back.',
+                'Controlled changes only. Validation failure must roll the change back.',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
@@ -129,6 +129,8 @@ jobs:
           if count != 1:
               raise SystemExit('Developer Mode method boundary not found')
           path.write_text(updated, encoding='utf-8')
+          PY
+
       - name: Commit cleanup
         run: |
           git config user.name "github-actions[bot]"
