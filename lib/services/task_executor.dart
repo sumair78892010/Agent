@@ -398,12 +398,10 @@ Step ${step + 1}/${_aiService.maxSteps}. Look at the text dump and coordinates. 
 
       // 4. Parse the action (with one retry on failure)
       Map<String, dynamic>? actionJson;
-      String? parsedJsonStr;
       try {
         String jsonStr = _extractJson(response);
 
         actionJson = jsonDecode(jsonStr) as Map<String, dynamic>;
-        parsedJsonStr = jsonStr;
       } catch (firstError) {
         // First attempt failed — retry once
         developer.log(
@@ -426,7 +424,6 @@ Step ${step + 1}/${_aiService.maxSteps}. Look at the text dump and coordinates. 
 
           String jsonStr = _extractJson(retryResponse.content);
           actionJson = jsonDecode(jsonStr) as Map<String, dynamic>;
-          parsedJsonStr = jsonStr;
         } catch (e) {
           results.add('Step ${step + 1}: Error after retry: $e');
 
@@ -911,198 +908,12 @@ Step ${step + 1}/${_aiService.maxSteps}. Look at the text dump and coordinates. 
 
   /// Verifies model-declared completion against observable device state.
   /// A successful native call or `is_complete=true` is never sufficient alone.
-  Future<bool> _verifyGoalCompletion(
-    String userGoal,
-    Map<String, dynamic> screenState,
-    String screenContent,
-  ) async {
-    final goal = userGoal.toLowerCase().trim();
-    final packageName = (screenState['package'] as String? ?? '').toLowerCase();
-    final visible = screenContent.toLowerCase();
-
-    // Opening an app is verified from the actual foreground package or visible
-    // app identity, not from the launcher API's return string.
-    final openMatch = RegExp(
-      r'\b(?:open|launch|start)\s+([a-z0-9][a-z0-9 ._-]{1,40})',
-    ).firstMatch(goal);
-    if (openMatch != null) {
-      final requested = openMatch.group(1)!.trim();
-      final normalizedRequested = requested.replaceAll(
-        RegExp(r'[^a-z0-9]'),
-        '',
-      );
-      final normalizedPackage = packageName.replaceAll(
-        RegExp(r'[^a-z0-9]'),
-        '',
-      );
-      final normalizedVisible = visible.replaceAll(RegExp(r'[^a-z0-9]'), '');
-      return normalizedRequested.isNotEmpty &&
-          (normalizedPackage.contains(normalizedRequested) ||
-              normalizedVisible.contains(normalizedRequested));
-    }
-
-    // Search/find goals require meaningful query/result evidence on screen.
-    final terms = goal
-        .replaceAll(RegExp(r'[^a-z0-9 ]'), ' ')
-        .split(RegExp(r'\s+'))
-        .where((word) => word.length >= 4)
-        .where(
-          (word) => !const {
-            'search',
-            'google',
-            'open',
-            'first',
-            'link',
-            'result',
-            'find',
-            'look',
-            'click',
-            'show',
-            'please',
-            'using',
-            'then',
-          }.contains(word),
-        )
-        .take(6)
-        .toList();
-    if (terms.isNotEmpty) {
-      final matches = terms.where(visible.contains).length;
-      if (matches >= (terms.length >= 3 ? 2 : 1)) return true;
-    }
-
-    // Generic completion still requires non-trivial observable screen state.
-    return visible.trim().length >= 20;
-  }
 
   /// Verifies model-declared completion against observable device state.
   /// A successful native call or `is_complete=true` is never sufficient alone.
-  Future<bool> _verifyGoalCompletion(
-    String userGoal,
-    Map<String, dynamic> screenState,
-    String screenContent,
-  ) async {
-    final goal = userGoal.toLowerCase().trim();
-    final packageName = (screenState['package'] as String? ?? '').toLowerCase();
-    final visible = screenContent.toLowerCase();
-
-    // Opening an app is verified from the actual foreground package or visible
-    // app identity, not from the launcher API's return string.
-    final openMatch = RegExp(
-      r'\b(?:open|launch|start)\s+([a-z0-9][a-z0-9 ._-]{1,40})',
-    ).firstMatch(goal);
-    if (openMatch != null) {
-      final requested = openMatch.group(1)!.trim();
-      final normalizedRequested = requested.replaceAll(
-        RegExp(r'[^a-z0-9]'),
-        '',
-      );
-      final normalizedPackage = packageName.replaceAll(
-        RegExp(r'[^a-z0-9]'),
-        '',
-      );
-      final normalizedVisible = visible.replaceAll(RegExp(r'[^a-z0-9]'), '');
-      return normalizedRequested.isNotEmpty &&
-          (normalizedPackage.contains(normalizedRequested) ||
-              normalizedVisible.contains(normalizedRequested));
-    }
-
-    // Search/find goals require meaningful query/result evidence on screen.
-    final terms = goal
-        .replaceAll(RegExp(r'[^a-z0-9 ]'), ' ')
-        .split(RegExp(r'\s+'))
-        .where((word) => word.length >= 4)
-        .where(
-          (word) => !const {
-            'search',
-            'google',
-            'open',
-            'first',
-            'link',
-            'result',
-            'find',
-            'look',
-            'click',
-            'show',
-            'please',
-            'using',
-            'then',
-          }.contains(word),
-        )
-        .take(6)
-        .toList();
-    if (terms.isNotEmpty) {
-      final matches = terms.where(visible.contains).length;
-      if (matches >= (terms.length >= 3 ? 2 : 1)) return true;
-    }
-
-    // Generic completion still requires non-trivial observable screen state.
-    return visible.trim().length >= 20;
-  }
 
   /// Verifies model-declared completion against observable device state.
   /// A successful native call or `is_complete=true` is never sufficient alone.
-  Future<bool> _verifyGoalCompletion(
-    String userGoal,
-    Map<String, dynamic> screenState,
-    String screenContent,
-  ) async {
-    final goal = userGoal.toLowerCase().trim();
-    final packageName = (screenState['package'] as String? ?? '').toLowerCase();
-    final visible = screenContent.toLowerCase();
-
-    // Opening an app is verified from the actual foreground package or visible
-    // app identity, not from the launcher API's return string.
-    final openMatch = RegExp(
-      r'\b(?:open|launch|start)\s+([a-z0-9][a-z0-9 ._-]{1,40})',
-    ).firstMatch(goal);
-    if (openMatch != null) {
-      final requested = openMatch.group(1)!.trim();
-      final normalizedRequested = requested.replaceAll(
-        RegExp(r'[^a-z0-9]'),
-        '',
-      );
-      final normalizedPackage = packageName.replaceAll(
-        RegExp(r'[^a-z0-9]'),
-        '',
-      );
-      final normalizedVisible = visible.replaceAll(RegExp(r'[^a-z0-9]'), '');
-      return normalizedRequested.isNotEmpty &&
-          (normalizedPackage.contains(normalizedRequested) ||
-              normalizedVisible.contains(normalizedRequested));
-    }
-
-    // Search/find goals require meaningful query/result evidence on screen.
-    final terms = goal
-        .replaceAll(RegExp(r'[^a-z0-9 ]'), ' ')
-        .split(RegExp(r'\s+'))
-        .where((word) => word.length >= 4)
-        .where(
-          (word) => !const {
-            'search',
-            'google',
-            'open',
-            'first',
-            'link',
-            'result',
-            'find',
-            'look',
-            'click',
-            'show',
-            'please',
-            'using',
-            'then',
-          }.contains(word),
-        )
-        .take(6)
-        .toList();
-    if (terms.isNotEmpty) {
-      final matches = terms.where(visible.contains).length;
-      if (matches >= (terms.length >= 3 ? 2 : 1)) return true;
-    }
-
-    // Generic completion still requires non-trivial observable screen state.
-    return visible.trim().length >= 20;
-  }
 
   void _report(String message) {
     final lower = message.toLowerCase();
