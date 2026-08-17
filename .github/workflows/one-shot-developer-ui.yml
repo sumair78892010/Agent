@@ -1,0 +1,139 @@
+name: One-shot developer settings cleanup
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    if: "!contains(github.event.head_commit.message, '[developer-ui]')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Simplify Developer Mode UI
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          path = Path('lib/screens/settings_screen.dart')
+          text = path.read_text(encoding='utf-8')
+          pattern = re.compile(
+              r"  Widget _buildDeveloperModeCard\(\) \{.*?\n  Future<bool> _requestOverlayPermission\(\) async \{",
+              re.S,
+          )
+
+          replacement = r'''  Widget _buildDeveloperModeCard() {
+    return ValueListenableBuilder<TaskDeveloperSnapshot>(
+      valueListenable: TaskTelemetryService.shared.developerState,
+      builder: (context, snapshot, _) {
+        if (_developerLoading) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: LinearProgressIndicator(),
+          );
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Developer Mode'),
+              subtitle: const Text(
+                'Turn this on only when you want Cypher to diagnose or improve the app.',
+              ),
+              value: _developerModeEnabled,
+              onChanged: _setDeveloperModeEnabled,
+            ),
+            if (_developerModeEnabled) ...[
+              const SizedBox(height: 8),
+              TextField(
+                controller: _upgradeProblemController,
+                minLines: 2,
+                maxLines: 6,
+                textInputAction: TextInputAction.newline,
+                decoration: InputDecoration(
+                  labelText: 'What should Cypher change or fix?',
+                  hintText: 'Describe the bug, feature, edit, or improvement...',
+                  filled: true,
+                  fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: _upgradeBusy ||
+                          _upgradeProblemController.text.trim().isEmpty
+                      ? null
+                      : _identifyUpgrade,
+                  icon: _upgradeBusy
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.auto_fix_high_rounded),
+                  label: Text(_upgradeBusy ? 'Working…' : 'Diagnose & fix'),
+                ),
+              ),
+              const SizedBox(height: 10),
+              if (snapshot.upgradePlan != null) ...[
+                Text(
+                  snapshot.upgradeStage.isEmpty
+                      ? 'Plan ready'
+                      : snapshot.upgradeStage,
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  snapshot.upgradeFinalResult.isEmpty
+                      ? 'Cypher will inspect the request, propose a controlled change, validate it, and keep or roll it back.'
+                      : snapshot.upgradeFinalResult,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 8),
+                if (snapshot.upgradeCanApply)
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _upgradeBusy ? null : _applyUpgrade,
+                      icon: const Icon(Icons.verified_rounded),
+                      label: const Text('Apply & validate proposed fix'),
+                    ),
+                  ),
+              ],
+              const SizedBox(height: 8),
+              Text(
+                'Changes are bounded to the controlled upgrade workflow. Validation failure must roll the change back.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ],
+        );
+      },
+    );
+  }
+
+  Future<bool> _requestOverlayPermission() async {'''
+
+          updated, count = pattern.subn(replacement, text, count=1)
+          if count != 1:
+              raise SystemExit('Developer Mode method boundary not found')
+          path.write_text(updated, encoding='utf-8')
+      - name: Commit cleanup
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/screens/settings_screen.dart
+          git diff --cached --check
+          git commit -m "fix: simplify developer mode for mobile [developer-ui]"
+          git push
