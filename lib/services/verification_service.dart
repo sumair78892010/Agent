@@ -2,77 +2,58 @@ import 'screen_automation_service.dart';
 import 'app_launcher_service.dart';
 
 /// Service to verify that actions actually completed successfully.
-/// Verification is bounded and prefers the Android foreground package over
-/// fragile text-only heuristics.
+/// Verification is bounded and prefers observable state changes over generic
+/// "no error" heuristics.
 class VerificationService {
   final ScreenAutomationService _screen = ScreenAutomationService();
   final AppLauncherService _appLauncher = AppLauncherService();
 
+  static const Duration _pollInterval = Duration(milliseconds: 120);
+  static const Duration _appLaunchTimeout = Duration(seconds: 4);
+
   /// Verify that an app is actually in the foreground.
   Future<bool> verifyAppOpened(String? packageName, String? appName) async {
-    if (packageName == null && appName == null) return false;
+    var expectedPackage = packageName?.trim().toLowerCase();
+    if ((expectedPackage == null || expectedPackage.isEmpty) &&
+        appName != null &&
+        appName.trim().isNotEmpty) {
+      final app = await _appLauncher.resolveApp(appName);
+      expectedPackage = app?.packageName.trim().toLowerCase();
+    }
+    if (expectedPackage == null || expectedPackage.isEmpty) return false;
 
-    try {
-      final normalizedPackage = packageName?.trim().toLowerCase();
-      final normalizedApp = appName?.trim().toLowerCase() ?? '';
-      final packageHint = normalizedApp.replaceAll(RegExp(r'[^a-z0-9]'), '');
-
-      // App launches can take a little time on a cold start. Poll briefly rather
-      // than sleeping for a fixed 800ms, so fast devices return immediately.
-      for (var attempt = 0; attempt < 8; attempt++) {
+    final deadline = DateTime.now().add(_appLaunchTimeout);
+    while (DateTime.now().isBefore(deadline)) {
+      try {
         final currentPackage =
             (await _screen.getCurrentPackage() ?? '').trim().toLowerCase();
-        if (currentPackage.isNotEmpty) {
-          if (normalizedPackage != null &&
-              (currentPackage == normalizedPackage ||
-                  currentPackage.contains(normalizedPackage))) {
-            return true;
-          }
-
-          if (normalizedApp.isNotEmpty) {
-            final compactPackage = currentPackage.replaceAll(
-              RegExp(r'[^a-z0-9]'),
-              '',
-            );
-            if (compactPackage.contains(packageHint)) return true;
-
-            // Fall back to visible app text only when package matching is
-            // inconclusive. This is slower, so it is not the first check.
-            final screen = await _screen.getScreenDescription();
-            final screenLower = screen.toLowerCase();
-            if (screenLower.contains(normalizedApp)) return true;
-          }
+        if (currentPackage == expectedPackage ||
+            currentPackage.contains(expectedPackage)) {
+          return true;
         }
-
-        if (attempt < 7) {
-          await Future.delayed(
-            Duration(milliseconds: attempt == 0 ? 120 : 180),
-          );
-        }
+      } catch (_) {
+        // Accessibility state can be transient immediately after a launch.
       }
-      return false;
-    } catch (_) {
-      return false;
+      await Future<void>.delayed(_pollInterval);
     }
+    return false;
   }
 
-  /// Verify a screen action had an observable effect.
   Future<bool> verifyScreenAction(String action, String? expectedChange) async {
     try {
-      await Future.delayed(const Duration(milliseconds: 180));
       final screenDesc = await _screen.getScreenDescription();
       if (screenDesc.contains('Could not read screen')) return false;
-      if (expectedChange == null) return true;
+      if (expectedChange == null || expectedChange.trim().isEmpty) {
+        return screenDesc.trim().isNotEmpty;
+      }
       return screenDesc.toLowerCase().contains(expectedChange.toLowerCase());
     } catch (_) {
       return false;
     }
   }
 
-  /// Verify that the typed text is now represented on the screen.
   Future<bool> verifyTextTyped(String text, {String? fieldHint}) async {
     try {
-      await Future.delayed(const Duration(milliseconds: 180));
       final screenDesc = await _screen.getScreenDescription();
       if (screenDesc.contains('Could not read screen')) return false;
       final normalized = text.trim();
@@ -83,31 +64,37 @@ class VerificationService {
     }
   }
 
-  /// Verify that a click did not simply disappear into the accessibility layer.
-  /// A readable screen is necessary; when the clicked label is still present,
-  /// that is acceptable because some controls update state without navigation.
-  Future<bool> verifyElementClicked(String elementText) async {
+  /// Verify a click using a before/after screen snapshot when available.
+  Future<bool> verifyElementClicked(
+    String elementText, {
+    String? beforeScreen,
+  }) async {
     try {
-      await Future.delayed(const Duration(milliseconds: 180));
       final screenDesc = await _screen.getScreenDescription();
       if (screenDesc.contains('Could not read screen')) return false;
       if (elementText.trim().isEmpty) return true;
-      return screenDesc.toLowerCase().contains(elementText.toLowerCase()) ||
-          screenDesc.contains('Current app:');
+
+      if (beforeScreen != null && beforeScreen.trim().isNotEmpty) {
+        if (beforeScreen.trim() != screenDesc.trim()) return true;
+      }
+
+      // A target disappearing is useful evidence that the click changed state.
+      return !screenDesc
+          .toLowerCase()
+          .contains(elementText.trim().toLowerCase());
     } catch (_) {
       return false;
     }
   }
 
-  /// Generic state verification for non-trivial actions.
   Future<bool> verifyDeviceState(
     String actionType,
     Map<String, dynamic> params,
   ) async {
     try {
-      await Future.delayed(const Duration(milliseconds: 180));
       final screenDesc = await _screen.getScreenDescription();
-      return !screenDesc.contains('Could not read screen');
+      return !screenDesc.contains('Could not read screen') &&
+          screenDesc.trim().isNotEmpty;
     } catch (_) {
       return false;
     }
