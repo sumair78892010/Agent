@@ -1,0 +1,92 @@
+name: Deterministic task executor repair
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: ${{ !contains(github.event.head_commit.message, 'task-executor-repair') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Dependencies
+        run: flutter pub get
+
+      - name: Repair duplicate completion verifier
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('lib/services/task_executor.dart')
+          text = path.read_text()
+          signature = '  Future<bool> _verifyGoalCompletion('
+          starts = []
+          cursor = 0
+          while True:
+              pos = text.find(signature, cursor)
+              if pos < 0:
+                  break
+              starts.append(pos)
+              cursor = pos + len(signature)
+
+          if len(starts) > 1:
+              # Remove every duplicate method from the end toward the first.
+              for start in reversed(starts[1:]):
+                  brace = text.find('{', start)
+                  if brace < 0:
+                      raise SystemExit(f'No method body found at {start}')
+                  depth = 0
+                  end = None
+                  for i in range(brace, len(text)):
+                      if text[i] == '{':
+                          depth += 1
+                      elif text[i] == '}':
+                          depth -= 1
+                          if depth == 0:
+                              end = i + 1
+                              break
+                  if end is None:
+                      raise SystemExit(f'Unbalanced method body at {start}')
+                  text = text[:start] + text[end:]
+
+          # Remove the now-unused temporary parser variable.
+          text = text.replace('      String? parsedJsonStr;\n', '')
+          text = text.replace('        parsedJsonStr = jsonStr;\n', '')
+          path.write_text(text)
+
+          remaining = text.count(signature)
+          if remaining != 1:
+              raise SystemExit(f'Expected exactly one verifier, found {remaining}')
+          PY
+
+      - name: Format and analyze
+        run: |
+          dart format lib/services/task_executor.dart
+          flutter analyze --no-fatal-warnings --no-fatal-infos
+
+      - name: Commit verified repair
+        run: |
+          git config user.name 'Agent Cypher Maintainer'
+          git config user.email 'actions@github.com'
+          git add lib/services/task_executor.dart
+          if git diff --cached --quiet; then
+            echo 'No task executor repair changes required.'
+          else
+            git commit -m 'fix: remove duplicate task completion verifier [task-executor-repair]'
+            git push origin main
+          fi
