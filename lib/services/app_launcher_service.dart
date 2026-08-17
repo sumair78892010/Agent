@@ -16,32 +16,35 @@ class AppLauncherService {
     _cachedApps = null;
   }
 
-  /// Find apps matching a query
+  /// Find apps matching a query.
   Future<List<AppInfo>> searchApps(String query) async {
     final apps = await getInstalledApps();
-    final lowerQuery = query.toLowerCase();
+    final lowerQuery = query.trim().toLowerCase();
+    if (lowerQuery.isEmpty) return const <AppInfo>[];
     return apps.where((app) {
       return app.name.toLowerCase().contains(lowerQuery);
     }).toList();
   }
 
-  /// Open an app by name (fuzzy match)
-  Future<String> openApp(String appName) async {
+  /// Resolve the best installed-app match without launching it.
+  Future<AppInfo?> resolveApp(String appName) async {
     final matches = await searchApps(appName);
+    if (matches.isEmpty) return null;
 
-    if (matches.isEmpty) {
+    final query = appName.trim().toLowerCase();
+    for (final app in matches) {
+      if (app.name.trim().toLowerCase() == query) return app;
+    }
+    return matches.first;
+  }
+
+  /// Open an app by name (fuzzy match).
+  Future<String> openApp(String appName) async {
+    final target = await resolveApp(appName);
+
+    if (target == null) {
       return 'Could not find app "$appName". Try being more specific.';
     }
-
-    // Try exact match first
-    AppInfo? target;
-    for (final app in matches) {
-      if (app.name.toLowerCase() == appName.toLowerCase()) {
-        target = app;
-        break;
-      }
-    }
-    target ??= matches.first;
 
     try {
       await InstalledApps.startApp(target.packageName);
@@ -51,7 +54,7 @@ class AppLauncherService {
     }
   }
 
-  /// Open an app by exact package name
+  /// Open an app by exact package name.
   Future<String> openPackage(String packageName) async {
     try {
       await InstalledApps.startApp(packageName);
@@ -61,7 +64,7 @@ class AppLauncherService {
     }
   }
 
-  /// Open a URL
+  /// Open a URL.
   Future<String> openUrl(String url) async {
     try {
       final uri = Uri.parse(url);
