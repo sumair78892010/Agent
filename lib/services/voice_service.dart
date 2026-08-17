@@ -10,6 +10,9 @@ class VoiceService {
   static const MethodChannel _nativeChannel = MethodChannel(
     'com.cypherghost.agentcypher/accessibility',
   );
+  static const EventChannel _wakeWordEventChannel = EventChannel(
+    'com.cypherghost.agentcypher/wake_word_events',
+  );
   bool _isInitialized = false;
   bool _ttsAvailable = false;
   bool _wakeWordAvailable = false;
@@ -17,11 +20,13 @@ class VoiceService {
   bool _wakeWordListening = false;
   bool _isListening = false;
 
-  // Event stream controllers
   final StreamController<VoiceEvent> _eventController =
       StreamController.broadcast();
+  StreamSubscription<dynamic>? _wakeWordEvents;
 
   String _lastRecognizedText = '';
+  String? _lastSpokenResponseId;
+  String? _lastSpokenText;
 
   bool get isListening => _isListening;
   Stream<VoiceEvent> get eventStream => _eventController.stream;
@@ -52,12 +57,27 @@ class VoiceService {
         },
       );
 
-      // Configure TTS
       await _tts.setLanguage('en-US');
       await _tts.setSpeechRate(0.5);
       await _tts.setVolume(1.0);
       await _tts.setPitch(1.0);
       _ttsAvailable = true;
+
+      // Bridge the native foreground wake-word service into the same event
+      // stream consumed by the UI. Native uses "wake_word"; Flutter exposes
+      // the stable "wake_word_detected" event to avoid leaking platform names.
+      _wakeWordEvents ??= _wakeWordEventChannel
+          .receiveBroadcastStream()
+          .listen(_handleNativeWakeWordEvent, onError: (Object error) {
+        _wakeWordAvailable = false;
+        _wakeWordListening = false;
+        _eventController.add(
+          VoiceEvent(
+            type: 'wake_word_error',
+            message: 'Wake-word event channel error: $error',
+          ),
+        );
+      });
 
       _eventController.add(
         VoiceEvent(type: 'initialized', message: 'Voice service initialized'),
@@ -69,16 +89,95 @@ class VoiceService {
     }
   }
 
-  /// Check if TTS engine is available
-  Future<bool> isTtsAvailable() async {
-    try {
-      return _ttsAvailable;
-    } catch (e) {
-      return false;
+  void _handleNativeWakeWordEvent(dynamic rawEvent) {
+    if (rawEvent is! Map) return;
+    final event = Map<String, dynamic>.from(
+      rawEvent.map((key, value) => MapEntry('$key', value)),
+    );
+    final type = event['type']?.toString() ?? '';
+
+    switch (type) {
+      case 'wake_word':
+        _wakeWordAvailable = true;
+        _wakeWordListening = false;
+        _eventController.add(
+          VoiceEvent(
+            type: 'wake_word_detected',
+            message: 'Hey Cypher detected',
+            content: event['text']?.toString(),
+            wakeWordAvailable: true,
+            wakeWordEnabled: _wakeWordEnabled,
+            wakeWordListening: false,
+          ),
+        );
+        break;
+      case 'unavailable':
+        _wakeWordAvailable = false;
+        _wakeWordListening = false;
+        _eventController.add(
+          VoiceEvent(
+            type: 'wake_word_unavailable',
+            message: event['reason']?.toString() ??
+                'Background wake-word recognition is unavailable.',
+            wakeWordAvailable: false,
+            wakeWordEnabled: _wakeWordEnabled,
+            wakeWordListening: false,
+          ),
+        );
+        break;
+      case 'status':
+        final running = event['running'] == true;
+        final paused = event['paused'] == true;
+        _wakeWordEnabled = running && !paused;
+        _wakeWordListening = running && !paused;
+        _wakeWordAvailable = true;
+        _eventController.add(
+          VoiceEvent(
+            type: running && !paused
+                ? 'wake_word_listening'
+                : 'wake_word_stopped',
+            message: running && !paused
+                ? 'Listening for Hey Cypher...'
+                : 'Wake-word service stopped.',
+            wakeWordAvailable: true,
+            wakeWordEnabled: _wakeWordEnabled,
+            wakeWordListening: _wakeWordListening,
+          ),
+        );
+        break;
+      case 'listening':
+        if (event['state'] == 'ready' || event['state'] == 'began') {
+          _wakeWordAvailable = true;
+          _wakeWordListening = true;
+          _eventController.add(
+            VoiceEvent(
+              type: 'wake_word_listening',
+              message: 'Listening for Hey Cypher...',
+              wakeWordAvailable: true,
+              wakeWordEnabled: _wakeWordEnabled,
+              wakeWordListening: true,
+            ),
+          );
+        }
+        break;
+      case 'error':
+        _wakeWordListening = false;
+        _eventController.add(
+          VoiceEvent(
+            type: 'wake_word_error',
+            message: event['message']?.toString() ??
+                'Background wake-word recognition failed.',
+            wakeWordAvailable: _wakeWordAvailable,
+            wakeWordEnabled: _wakeWordEnabled,
+            wakeWordListening: false,
+          ),
+        );
+        break;
     }
   }
 
-  /// Start listening for speech. Returns transcribed text via callback.
+  Future<bool> isTtsAvailable() async => _ttsAvailable;
+
   Future<void> startListening({
     required Function(String) onResult,
     required Function() onDone,
@@ -90,8 +189,7 @@ class VoiceService {
       );
       return;
     }
-
-    if (_isListening) return; // Already listening
+    if (_isListening) return;
 
     _isListening = true;
     _eventController.add(
@@ -143,7 +241,6 @@ class VoiceService {
     }
   }
 
-  /// Stop listening
   Future<void> stopListening() async {
     _isListening = false;
     await _speech.stop();
@@ -152,17 +249,13 @@ class VoiceService {
     );
   }
 
-  /// Speak text aloud
   Future<void> speak(String text) async {
-    if (text.isEmpty) return;
-
+    if (text.trim().isEmpty) return;
     try {
       _eventController.add(
         VoiceEvent(type: 'speaking_started', message: 'Started speaking'),
       );
-
       await _tts.speak(text);
-
       _eventController.add(
         VoiceEvent(type: 'speaking_completed', message: 'Finished speaking'),
       );
@@ -171,7 +264,6 @@ class VoiceService {
     }
   }
 
-  /// Stop speaking
   Future<void> stopSpeaking() async {
     await _tts.stop();
     _eventController.add(
@@ -179,17 +271,12 @@ class VoiceService {
     );
   }
 
-  /// Get last recognized text
   String getLastRecognizedText() => _lastRecognizedText;
-
-  /// Clear last recognized text
   void clearLastRecognizedText() => _lastRecognizedText = '';
 
   Future<Map<String, dynamic>> getWakeWordStatus() async {
     try {
-      final raw = await _nativeChannel.invokeMethod<dynamic>(
-        'getWakeWordStatus',
-      );
+      final raw = await _nativeChannel.invokeMethod<dynamic>('getWakeWordStatus');
       final status = raw is Map
           ? raw.map((key, value) => MapEntry('$key', value))
           : <String, dynamic>{};
@@ -262,12 +349,18 @@ class VoiceService {
     bool fromVoice = false,
     String? responseId,
   }) async {
-    // Text prompts remain visual-only. Only a response originating from a
-    // voice prompt may be spoken automatically.
     if (!fromVoice) return false;
     if (!_ttsAvailable && !_isInitialized) await init();
     if (!_ttsAvailable) return false;
-    await speak(_sanitizeForSpeech(text));
+
+    final sanitized = _sanitizeForSpeech(text);
+    if (sanitized.isEmpty) return false;
+    if (responseId != null && responseId == _lastSpokenResponseId) return false;
+    if (responseId == null && sanitized == _lastSpokenText) return false;
+
+    _lastSpokenResponseId = responseId;
+    _lastSpokenText = sanitized;
+    await speak(sanitized);
     return true;
   }
 
@@ -275,11 +368,16 @@ class VoiceService {
     var sanitized = text
         .replaceAll(RegExp(r'```[\s\S]*?```'), ' code block ')
         .replaceAll(RegExp(r'`([^`]*)`'), r'$1')
+        .replaceAll(RegExp(r'!\[([^\]]*)\]\([^)]*\)'), r'$1')
+        .replaceAll(RegExp(r'\[([^\]]+)\]\([^)]*\)'), r'$1')
+        .replaceAll(RegExp(r'https?://\S+'), ' link ')
         .replaceAll(RegExp(r'\*\*([^*]+)\*\*'), r'$1')
         .replaceAll(RegExp(r'__([^_]+)__'), r'$1')
+        .replaceAll(RegExp(r'~~([^~]+)~~'), r'$1')
         .replaceAll(RegExp(r'^\s{0,3}#{1,6}\s*', multiLine: true), '')
         .replaceAll(RegExp(r'^\s*[-*+]\s+', multiLine: true), '')
         .replaceAll(RegExp(r'^\s*\d+[.)]\s+', multiLine: true), '')
+        .replaceAll(RegExp(r'\|'), ' ')
         .replaceAll(RegExp(r'[\u200B-\u200D\uFEFF]'), '')
         .replaceAll(RegExp(r'\s+'), ' ')
         .trim();
@@ -287,16 +385,16 @@ class VoiceService {
   }
 
   void dispose() {
+    _wakeWordEvents?.cancel();
+    _wakeWordEvents = null;
     _speech.stop();
     _tts.stop();
     _eventController.close();
   }
 }
 
-/// Voice event for streaming updates
 class VoiceEvent {
-  final String
-  type; // initialized, listening_started, listening_stopped, recognized, partial_result, speaking_started, speaking_completed, speaking_stopped, error
+  final String type;
   final String message;
   final String? content;
   final bool? speechRecognitionAvailable;
