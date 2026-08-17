@@ -21,9 +21,10 @@ import java.util.Locale
 /**
  * Foreground, built-in speech-recognition wake-word bridge.
  *
- * This is deliberately a small native bridge: it reports recognition events to
- * Flutter and does not claim a dedicated always-on keyword model. The service
- * remains truthful when recognition is unavailable or permission is missing.
+ * This deliberately uses Android's speech recognizer rather than claiming a
+ * dedicated local keyword model. It reports truthful availability and keeps
+ * the latest event so Flutter can resynchronize after an Activity/engine
+ * lifecycle change.
  */
 class BackgroundWakeWordService : Service() {
     companion object {
@@ -37,7 +38,21 @@ class BackgroundWakeWordService : Service() {
         private const val MAX_RESTART_DELAY_MS = 4000L
 
         @Volatile
-        var eventListener: ((Map<String, Any>) -> Unit)? = null
+        private var listener: ((Map<String, Any>) -> Unit)? = null
+
+        @Volatile
+        private var lastEvent: Map<String, Any>? = null
+
+        var eventListener: ((Map<String, Any>) -> Unit)?
+            get() = listener
+            set(value) {
+                listener = value
+                if (value != null) {
+                    lastEvent?.let { event ->
+                        runCatching { value.invoke(event) }
+                    }
+                }
+            }
 
         @Volatile
         private var serviceRunning = false
@@ -77,7 +92,6 @@ class BackgroundWakeWordService : Service() {
         }
 
         override fun onRmsChanged(rmsdB: Float) = Unit
-
         override fun onBufferReceived(buffer: ByteArray?) = Unit
 
         override fun onEndOfSpeech() {
@@ -98,7 +112,10 @@ class BackgroundWakeWordService : Service() {
             if (transcript.isNotEmpty()) {
                 emit("transcript", mapOf("text" to transcript))
                 if (containsWakePhrase(transcript)) {
-                    emit("wake_word", mapOf("text" to transcript, "phrase" to "hey cypher"))
+                    emit(
+                        "wake_word",
+                        mapOf("text" to transcript, "phrase" to "hey cypher"),
+                    )
                 }
             }
             scheduleRestart()
@@ -111,7 +128,10 @@ class BackgroundWakeWordService : Service() {
                 .orEmpty()
                 .trim()
             if (transcript.isNotEmpty() && containsWakePhrase(transcript)) {
-                emit("wake_word", mapOf("text" to transcript, "partial" to true, "phrase" to "hey cypher"))
+                emit(
+                    "wake_word",
+                    mapOf("text" to transcript, "partial" to true, "phrase" to "hey cypher"),
+                )
             }
         }
 
@@ -123,7 +143,7 @@ class BackgroundWakeWordService : Service() {
         createNotificationChannel()
         startForegroundCompat()
         serviceRunning = true
-        emit("status", mapOf("running" to true))
+        emit("status", mapOf("running" to true, "paused" to false))
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -143,7 +163,7 @@ class BackgroundWakeWordService : Service() {
         recognizer?.cancel()
         recognizer?.destroy()
         recognizer = null
-        emit("status", mapOf("running" to false))
+        emit("status", mapOf("running" to false, "paused" to false))
         super.onDestroy()
     }
 
@@ -169,12 +189,12 @@ class BackgroundWakeWordService : Service() {
         servicePaused = true
         mainHandler.removeCallbacksAndMessages(null)
         recognizer?.cancel()
-        emit("status", mapOf("paused" to true))
+        emit("status", mapOf("running" to serviceRunning, "paused" to true))
     }
 
     private fun resumeRecognition() {
         servicePaused = false
-        emit("status", mapOf("paused" to false))
+        emit("status", mapOf("running" to serviceRunning, "paused" to false))
         startRecognition()
     }
 
@@ -185,7 +205,10 @@ class BackgroundWakeWordService : Service() {
             if (!serviceRunning || servicePaused) return@postDelayed
             runCatching {
                 val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                    putExtra(
+                        RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                        RecognizerIntent.LANGUAGE_MODEL_FREE_FORM,
+                    )
                     putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
                     putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
                     putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
@@ -194,7 +217,8 @@ class BackgroundWakeWordService : Service() {
             }.onFailure {
                 lastError = it.message ?: "Could not start speech recognition"
                 emit("error", mapOf("message" to lastError.orEmpty()))
-                restartDelayMs = (restartDelayMs * 2).coerceAtMost(MAX_RESTART_DELAY_MS)
+                restartDelayMs =
+                    (restartDelayMs * 2).coerceAtMost(MAX_RESTART_DELAY_MS)
                 scheduleRestart(restartDelayMs)
             }
         }, delayMs)
@@ -211,7 +235,8 @@ class BackgroundWakeWordService : Service() {
     private fun emit(type: String, values: Map<String, Any>) {
         val payload = mutableMapOf<String, Any>("type" to type)
         payload.putAll(values)
-        eventListener?.invoke(payload)
+        lastEvent = payload.toMap()
+        listener?.invoke(payload)
     }
 
     private fun createNotificationChannel() {
@@ -248,7 +273,11 @@ class BackgroundWakeWordService : Service() {
             .build()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
+            startForeground(
+                NOTIFICATION_ID,
+                notification,
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE,
+            )
         } else {
             startForeground(NOTIFICATION_ID, notification)
         }
