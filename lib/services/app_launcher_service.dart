@@ -11,7 +11,7 @@ class AppLauncherService {
     return _cachedApps!;
   }
 
-  /// Clear app cache
+  /// Clear app cache.
   void clearCache() {
     _cachedApps = null;
   }
@@ -21,24 +21,41 @@ class AppLauncherService {
     final apps = await getInstalledApps();
     final lowerQuery = query.trim().toLowerCase();
     if (lowerQuery.isEmpty) return const <AppInfo>[];
+
     return apps.where((app) {
       return app.name.toLowerCase().contains(lowerQuery);
     }).toList();
   }
 
   /// Resolve the best installed-app match without launching it.
+  ///
+  /// Matching is deliberately ranked instead of taking the first fuzzy match.
+  /// This prevents requests such as "open YouTube" from accidentally selecting
+  /// a similarly named application such as YouTube Music.
   Future<AppInfo?> resolveApp(String appName) async {
-    final matches = await searchApps(appName);
-    if (matches.isEmpty) return null;
-
     final query = appName.trim().toLowerCase();
-    for (final app in matches) {
-      if (app.name.trim().toLowerCase() == query) return app;
+    if (query.isEmpty) return null;
+
+    final apps = await getInstalledApps();
+    final candidates = apps.where((app) {
+      return app.name.toLowerCase().contains(query);
+    }).toList();
+    if (candidates.isEmpty) return null;
+
+    int score(AppInfo app) {
+      final name = app.name.trim().toLowerCase();
+      if (name == query) return 1000;
+      if (name.startsWith('$query ')) return 900;
+      if (name.startsWith(query)) return 800;
+      if (name.split(RegExp(r'\s+')).contains(query)) return 700;
+      return 500;
     }
-    return matches.first;
+
+    candidates.sort((a, b) => score(b).compareTo(score(a)));
+    return candidates.first;
   }
 
-  /// Open an app by name (fuzzy match).
+  /// Open an app by name using the highest-confidence installed-app match.
   Future<String> openApp(String appName) async {
     final target = await resolveApp(appName);
 
