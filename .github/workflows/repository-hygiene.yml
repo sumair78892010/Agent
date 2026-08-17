@@ -1,0 +1,36 @@
+name: Repository hygiene
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    if: ${{ !contains(github.event.head_commit.message, 'repository-hygiene') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Remove generated artifacts
+        run: |
+          find . -type d \( -name .gradle -o -name build -o -name .dart_tool \) -prune -exec rm -rf {} +
+          rm -f local.properties
+
+      - name: Commit cleanup
+        run: |
+          git config user.name 'Agent Cypher Maintainer'
+          git config user.email 'actions@github.com'
+          git add -A
+          if git diff --cached --quiet; then
+            echo 'Repository already clean.'
+          else
+            git commit -m 'chore: remove generated build artifacts [repository-hygiene]'
+            git push origin main
+          fi
