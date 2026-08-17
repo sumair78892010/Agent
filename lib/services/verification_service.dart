@@ -2,8 +2,8 @@ import 'screen_automation_service.dart';
 import 'app_launcher_service.dart';
 
 /// Service to verify that actions actually completed successfully.
-/// The goal is to validate real UI transitions instead of treating any return value
-/// as proof that a task succeeded.
+/// Verification is bounded and prefers the Android foreground package over
+/// fragile text-only heuristics.
 class VerificationService {
   final ScreenAutomationService _screen = ScreenAutomationService();
   final AppLauncherService _appLauncher = AppLauncherService();
@@ -13,22 +13,43 @@ class VerificationService {
     if (packageName == null && appName == null) return false;
 
     try {
-      await Future.delayed(const Duration(milliseconds: 800));
-      final currentPackage = (await _screen.getCurrentPackage() ?? '').toLowerCase();
-      if (currentPackage.isEmpty) return false;
+      final normalizedPackage = packageName?.trim().toLowerCase();
+      final normalizedApp = appName?.trim().toLowerCase() ?? '';
+      final packageHint = normalizedApp.replaceAll(RegExp(r'[^a-z0-9]'), '');
 
-      if (packageName != null) {
-        final normalized = packageName.toLowerCase();
-        return currentPackage == normalized || currentPackage.contains(normalized);
+      // App launches can take a little time on a cold start. Poll briefly rather
+      // than sleeping for a fixed 800ms, so fast devices return immediately.
+      for (var attempt = 0; attempt < 8; attempt++) {
+        final currentPackage =
+            (await _screen.getCurrentPackage() ?? '').trim().toLowerCase();
+        if (currentPackage.isNotEmpty) {
+          if (normalizedPackage != null &&
+              (currentPackage == normalizedPackage ||
+                  currentPackage.contains(normalizedPackage))) {
+            return true;
+          }
+
+          if (normalizedApp.isNotEmpty) {
+            final compactPackage = currentPackage.replaceAll(
+              RegExp(r'[^a-z0-9]'),
+              '',
+            );
+            if (compactPackage.contains(packageHint)) return true;
+
+            // Fall back to visible app text only when package matching is
+            // inconclusive. This is slower, so it is not the first check.
+            final screen = await _screen.getScreenDescription();
+            final screenLower = screen.toLowerCase();
+            if (screenLower.contains(normalizedApp)) return true;
+          }
+        }
+
+        if (attempt < 7) {
+          await Future.delayed(
+            Duration(milliseconds: attempt == 0 ? 120 : 180),
+          );
+        }
       }
-
-      if (appName != null) {
-        final normalized = appName.toLowerCase();
-        final screen = await _screen.getScreenDescription();
-        final screenLower = screen.toLowerCase();
-        return currentPackage.contains(normalized) || screenLower.contains(normalized);
-      }
-
       return false;
     } catch (_) {
       return false;
@@ -38,7 +59,7 @@ class VerificationService {
   /// Verify a screen action had an observable effect.
   Future<bool> verifyScreenAction(String action, String? expectedChange) async {
     try {
-      await Future.delayed(const Duration(milliseconds: 600));
+      await Future.delayed(const Duration(milliseconds: 180));
       final screenDesc = await _screen.getScreenDescription();
       if (screenDesc.contains('Could not read screen')) return false;
       if (expectedChange == null) return true;
@@ -51,7 +72,7 @@ class VerificationService {
   /// Verify that the typed text is now represented on the screen.
   Future<bool> verifyTextTyped(String text, {String? fieldHint}) async {
     try {
-      await Future.delayed(const Duration(milliseconds: 500));
+      await Future.delayed(const Duration(milliseconds: 180));
       final screenDesc = await _screen.getScreenDescription();
       if (screenDesc.contains('Could not read screen')) return false;
       final normalized = text.trim();
@@ -62,10 +83,12 @@ class VerificationService {
     }
   }
 
-  /// Verify that an element click produced a screen transition or opened a new target.
+  /// Verify that a click did not simply disappear into the accessibility layer.
+  /// A readable screen is necessary; when the clicked label is still present,
+  /// that is acceptable because some controls update state without navigation.
   Future<bool> verifyElementClicked(String elementText) async {
     try {
-      await Future.delayed(const Duration(milliseconds: 600));
+      await Future.delayed(const Duration(milliseconds: 180));
       final screenDesc = await _screen.getScreenDescription();
       if (screenDesc.contains('Could not read screen')) return false;
       if (elementText.trim().isEmpty) return true;
@@ -77,9 +100,12 @@ class VerificationService {
   }
 
   /// Generic state verification for non-trivial actions.
-  Future<bool> verifyDeviceState(String actionType, Map<String, dynamic> params) async {
+  Future<bool> verifyDeviceState(
+    String actionType,
+    Map<String, dynamic> params,
+  ) async {
     try {
-      await Future.delayed(const Duration(milliseconds: 500));
+      await Future.delayed(const Duration(milliseconds: 180));
       final screenDesc = await _screen.getScreenDescription();
       return !screenDesc.contains('Could not read screen');
     } catch (_) {
