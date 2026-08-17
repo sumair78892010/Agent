@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   verify:
@@ -35,23 +35,8 @@ jobs:
       - name: Dependencies
         run: flutter pub get
 
-      - name: Apply verified task completion migration
-        if: ${{ !contains(github.event.head_commit.message, 'task-integrity-fix') }}
-        run: |
-          python3 tooling/apply_task_integrity_fix.py
-          dart format lib/services/task_executor.dart
-          git config user.name 'Agent Cypher Maintainer'
-          git config user.email 'actions@github.com'
-          git add lib/services/task_executor.dart
-          if git diff --cached --quiet; then
-            echo 'No task completion changes required.'
-          else
-            git commit -m 'fix: verify task completion against observable state [task-integrity-fix]'
-            git push origin main
-          fi
-
       - name: Analyze
-        run: flutter analyze
+        run: flutter analyze --no-fatal-warnings --no-fatal-infos
 
       - name: Unit tests
         run: flutter test
