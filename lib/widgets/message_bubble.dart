@@ -29,15 +29,16 @@ class MessageBubble extends StatelessWidget {
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
         constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.8,
+          // Keep bubbles readable on tablets while reclaiming width on phones.
+          maxWidth: MediaQuery.of(context).size.width * 0.92,
         ),
         margin: EdgeInsets.only(
-          left: isUser ? 48 : 8,
-          right: isUser ? 8 : 48,
+          left: isUser ? 32 : 0,
+          right: isUser ? 0 : 32,
           top: 4,
           bottom: 4,
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
           color: isUser
               ? Theme.of(context).colorScheme.primary
@@ -103,7 +104,6 @@ class MessageBubble extends StatelessWidget {
               ),
               const SizedBox(height: 8),
             ],
-            // Action result badge
             if (message.actionResult != null) ...[
               Container(
                 padding: const EdgeInsets.symmetric(
@@ -136,25 +136,28 @@ class MessageBubble extends StatelessWidget {
                           : Colors.red,
                     ),
                     const SizedBox(width: 6),
-                    Text(
-                      message.actionResult!.actionType.toUpperCase().replaceAll(
-                        '_',
-                        ' ',
-                      ),
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: message.actionResult!.success
-                            ? Colors.green
-                            : Colors.red,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.5,
+                    Flexible(
+                      child: Text(
+                        message.actionResult!.actionType.toUpperCase().replaceAll(
+                          '_',
+                          ' ',
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: message.actionResult!.success
+                              ? Colors.green
+                              : Colors.red,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5,
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
             ],
-            // Message text
             if (isUser)
               SelectableText(
                 message.content,
@@ -193,6 +196,7 @@ class MessageBubble extends StatelessWidget {
               const SizedBox(height: 8),
               Wrap(
                 spacing: 4,
+                runSpacing: 4,
                 children: [
                   if (onEdit != null)
                     _MessageAction(
@@ -222,7 +226,6 @@ class MessageBubble extends StatelessWidget {
                 ],
               ),
             ],
-            // Timestamp
             const SizedBox(height: 4),
             Text(
               _formatTime(message.timestamp),
