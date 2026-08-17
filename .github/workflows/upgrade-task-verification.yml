@@ -1,0 +1,57 @@
+name: Apply Task Verification Upgrade
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  upgrade:
+    if: contains(github.event.head_commit.message, 'feat: add task verification upgrade') == false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Apply verified task verification changes
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          p = Path('lib/services/task_executor.dart')
+          s = p.read_text()
+
+          old_prompt = """- If stuck after 3 attempts, set is_complete=true and explain in reasoning.\n"""
+          new_prompt = """- Never set is_complete=true merely to escape a stuck state. If the goal is not visibly complete, choose a recovery or navigation action instead.\n"""
+          if old_prompt not in s:
+              raise SystemExit('Expected task prompt text was not found')
+          s = s.replace(old_prompt, new_prompt, 1)
+
+          old_generic = """    // Generic completion still requires non-trivial observable screen state.\n    return visible.trim().length >= 20;\n"""
+          new_generic = """    // Never accept generic screen content as proof of completion. A non-empty\n    // screen only proves that the device responded, not that the user's goal\n    // was achieved. The executor must keep observing/recovering until it has\n    // goal-specific evidence.\n    return false;\n"""
+          if old_generic not in s:
+              raise SystemExit('Expected generic completion fallback was not found')
+          s = s.replace(old_generic, new_generic, 1)
+
+          old_memory = """        case 'done':\n          success = true;\n          actionResult = 'Done step reached';\n          break;\n"""
+          new_memory = """        case 'done':\n          // A saved skill cannot prove completion from a stored `done` marker.\n          // Replay must finish its concrete actions and let the live executor\n          // verify the current device state before declaring success.\n          success = false;\n          actionResult = 'Saved skill contained an unverified done marker';\n          break;\n"""
+          if old_memory not in s:
+              raise SystemExit('Expected saved-skill done handling was not found')
+          s = s.replace(old_memory, new_memory, 1)
+
+          p.write_text(s)
+          PY
+
+      - name: Format changed Dart source
+        run: |
+          dart format lib/services/task_executor.dart
+
+      - name: Commit verified upgrade
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/services/task_executor.dart
+          git diff --cached --check
+          git diff --cached --quiet && { echo 'No task verification changes were produced'; exit 0; }
+          git commit -m "feat: add task verification upgrade"
+          git push origin main
