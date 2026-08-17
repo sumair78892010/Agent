@@ -1,0 +1,221 @@
+name: Task integrity maintenance
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: ${{ !contains(github.event.head_commit.message, 'task-integrity-fix') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.0'
+          channel: stable
+          cache: true
+      - name: Apply verified task completion guard
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('lib/services/task_executor.dart')
+          s = p.read_text()
+          anchor = "  void _report(String message) {"
+          helper = r'''  /// Independently verifies that a model-declared completion is supported by
+  /// observable device state. A successful action or `is_complete=true` is not
+  /// sufficient evidence on its own.
+  Future<bool> _verifyGoalCompletion(
+    String userGoal,
+    Map<String, dynamic> screenState,
+    String screenContent,
+  ) async {
+    final goal = userGoal.toLowerCase().trim();
+    final packageName = (screenState['package'] as String? ?? '').toLowerCase();
+    final visible = screenContent.toLowerCase();
+
+    // App-opening goals are verified against the actual foreground package or
+    // visible app identity instead of the launch API's return value.
+    final openMatch = RegExp(r'\b(?:open|launch|start)\s+([a-z0-9][a-z0-9 ._-]{1,40})')
+        .firstMatch(goal);
+    if (openMatch != null) {
+      final requested = openMatch.group(1)!.trim();
+      final normalizedRequested = requested.replaceAll(RegExp(r'[^a-z0-9]'), '');
+      final normalizedPackage = packageName.replaceAll(RegExp(r'[^a-z0-9]'), '');
+      final normalizedVisible = visible.replaceAll(RegExp(r'[^a-z0-9]'), '');
+      if (normalizedRequested.isNotEmpty &&
+          (normalizedPackage.contains(normalizedRequested) ||
+              normalizedVisible.contains(normalizedRequested))) {
+        return true;
+      }
+      return false;
+    }
+
+    // Search/find goals need observable evidence that the requested subject is
+    // present on the resulting screen. Ignore common instruction words.
+    final terms = goal
+        .replaceAll(RegExp(r'[^a-z0-9 ]'), ' ')
+        .split(RegExp(r'\s+'))
+        .where((word) => word.length >= 4)
+        .where((word) => !const {
+              'search', 'google', 'open', 'first', 'link', 'result',
+              'find', 'look', 'click', 'show', 'please', 'using', 'then',
+            }.contains(word))
+        .take(6)
+        .toList();
+    if (terms.isNotEmpty) {
+      final matches = terms.where(visible.contains).length;
+      if (matches >= (terms.length >= 3 ? 2 : 1)) return true;
+    }
+
+    // For generic goals, require meaningful screen evidence plus a recent
+    // successful step. Do not let a bare `done` terminate a task with no evidence.
+    return visible.trim().isNotEmpty && visible.length >= 20;
+  }
+
+'''
+          if helper not in s:
+              if anchor not in s:
+                  raise SystemExit('TaskExecutor anchor not found')
+              s = s.replace(anchor, helper + anchor, 1)
+
+          old_done = '''        case 'done':
+          results.add('Task complete: $reasoning');
+          _report('Task complete: $reasoning');
+          final finalReason = reasoning.trim().isEmpty
+              ? 'Done.'
+              : reasoning.trim();
+          telemetry.finish(status: 'complete', finalResult: finalReason);
+          await _notificationService.showTaskCompleteNotification(
+            'Task Completed',
+            reasoning.trim().isEmpty ? 'Agent finished its goal.' : reasoning,
+          );
+          await _screenService.showToast('Task completed');
+          return finalReason;
+'''
+          new_done = '''        case 'done':
+          final completionVerified = await _verifyGoalCompletion(
+            userGoal,
+            screenState,
+            screenContent,
+          );
+          if (!completionVerified) {
+            final blockedResult =
+                'Completion rejected: the current screen does not provide enough evidence that the root goal is complete.';
+            results.add(blockedResult);
+            _report(blockedResult);
+            telemetry.recordVerification(
+              diagnostic: blockedResult,
+              progressed: false,
+            );
+            consecutiveFailures++;
+            lastFailedAction = 'done';
+            continue;
+          }
+          results.add('Task complete: $reasoning');
+          _report('Task complete: $reasoning');
+          final finalReason = reasoning.trim().isEmpty
+              ? 'Done.'
+              : reasoning.trim();
+          telemetry.finish(status: 'complete', finalResult: finalReason);
+          await _notificationService.showTaskCompleteNotification(
+            'Task Completed',
+            reasoning.trim().isEmpty ? 'Agent finished its goal.' : reasoning,
+          );
+          await _screenService.showToast('Task completed');
+          return finalReason;
+'''
+          if old_done not in s:
+              raise SystemExit('done block not found')
+          s = s.replace(old_done, new_done, 1)
+
+          old_complete = '''      if (isComplete) {
+        results.add('Task complete.');
+        _report('Task complete.');
+        telemetry.finish(status: 'complete', finalResult: 'Done.');
+        await _notificationService.showTaskCompleteNotification(
+          'Task Completed',
+          'Agent finished its goal.',
+        );
+        await TaskHistoryLogger.logTask(
+          userGoal,
+          'Success',
+          totalTokens,
+          step,
+          results,
+        );
+
+        // Save to skill memory
+        await _skillMemory.saveSkill(userGoal, executedSteps);
+
+        await _screenService.showToast('Task Complete!');
+        // Wait 4 seconds so the user can see the result before jumping back
+        await Future.delayed(const Duration(milliseconds: 900));
+        return reasoning.trim().isEmpty ? 'Done.' : reasoning.trim();
+      }
+'''
+          new_complete = '''      if (isComplete) {
+        final completionVerified = await _verifyGoalCompletion(
+          userGoal,
+          screenState,
+          screenContent,
+        );
+        if (!completionVerified) {
+          const blockedResult =
+              'Completion claim rejected: observable evidence does not yet prove the root goal is complete.';
+          results.add(blockedResult);
+          _report(blockedResult);
+          telemetry.recordVerification(
+            diagnostic: blockedResult,
+            progressed: false,
+          );
+          consecutiveFailures++;
+          lastFailedAction = action;
+          continue;
+        }
+
+        results.add('Task complete.');
+        _report('Task complete.');
+        telemetry.finish(status: 'complete', finalResult: 'Done.');
+        await _notificationService.showTaskCompleteNotification(
+          'Task Completed',
+          'Agent finished its goal.',
+        );
+        await TaskHistoryLogger.logTask(
+          userGoal,
+          'Success',
+          totalTokens,
+          step,
+          results,
+        );
+
+        // Save to skill memory only after independent completion verification.
+        await _skillMemory.saveSkill(userGoal, executedSteps);
+
+        await _screenService.showToast('Task Complete!');
+        await Future.delayed(const Duration(milliseconds: 900));
+        return reasoning.trim().isEmpty ? 'Done.' : reasoning.trim();
+      }
+'''
+          if old_complete not in s:
+              raise SystemExit('isComplete block not found')
+          s = s.replace(old_complete, new_complete, 1)
+
+          p.write_text(s)
+          PY
+      - name: Format and analyze changed service
+        run: |
+          dart format lib/services/task_executor.dart
+          flutter analyze lib/services/task_executor.dart
+      - name: Commit task integrity fix
+        run: |
+          git config user.name 'Agent Cypher Maintainer'
+          git config user.email 'actions@github.com'
+          git add lib/services/task_executor.dart
+          git diff --cached --quiet && exit 0
+          git commit -m 'fix: verify task completion against observable state [task-integrity-fix]'
+          git push origin main
