@@ -30,11 +30,8 @@ class ActionHandler {
   FileOperationService get fileOps => _fileOps;
   WebOperationService get webOps => _webOps;
 
-  /// The currently running task executor, if any
   TaskExecutor? _currentExecutor;
 
-  /// Execute an action and return the result
-  /// This now includes REAL verification for critical actions
   Future<AgentActionResult> execute(
     AgentAction action, {
     AiService? aiService,
@@ -47,25 +44,33 @@ class ActionHandler {
       switch (action.action) {
         case 'open_app':
           final appName = action.params['app_name'] as String? ?? '';
-          result = await _appLauncher.openApp(appName);
-
-          // REAL VERIFICATION: Verify the app actually opened
-          final isOpen = await _verification.verifyAppOpened(null, appName);
+          final target = await _appLauncher.resolveApp(appName);
+          if (target == null) {
+            return AgentActionResult(
+              actionType: action.action,
+              success: false,
+              details: 'Could not find app "$appName". Try being more specific.',
+            );
+          }
+          result = await _appLauncher.openPackage(target.packageName);
+          final isOpen = await _verification.verifyAppOpened(
+            target.packageName,
+            target.name,
+          );
           success = isOpen;
-
           if (!success) {
-            result = 'Failed to open $appName (app did not become foreground)';
+            result =
+                'Failed to open ${target.name} (the app did not become foreground)';
+          } else {
+            result = 'Opened ${target.name}';
           }
           break;
 
         case 'launch_package':
           final packageName = action.params['package_name'] as String? ?? '';
           result = await _appLauncher.openPackage(packageName);
-
-          // REAL VERIFICATION: Verify the app actually opened
           final isOpen = await _verification.verifyAppOpened(packageName, null);
           success = isOpen;
-
           if (!success) {
             result =
                 'Failed to launch $packageName (package did not become foreground)';
@@ -117,7 +122,6 @@ class ActionHandler {
           result = await _systemControl.setVolume(
             (action.params['level'] as num?)?.toInt() ?? 50,
           );
-          // REAL VERIFICATION: Verify the volume actually changed
           success = !result.startsWith('Error');
           break;
 
@@ -125,7 +129,6 @@ class ActionHandler {
           result = await _systemControl.setBrightness(
             (action.params['level'] as num?)?.toInt() ?? 50,
           );
-          // REAL VERIFICATION: Verify the brightness actually changed
           success = !result.startsWith('Error');
           break;
 
@@ -145,8 +148,6 @@ class ActionHandler {
           success = !result.startsWith('Error');
           break;
 
-        // ─── Screen Automation Actions ────────────────────────
-
         case 'read_screen':
           result = await _screenAutomation.getScreenDescription();
           success = !result.contains('Could not read screen');
@@ -155,8 +156,6 @@ class ActionHandler {
         case 'click_element':
           final text = action.params['text'] as String? ?? '';
           final clickSuccess = await _screenAutomation.clickByText(text);
-
-          // REAL VERIFICATION: Verify the click had effect
           final verified = await _verification.verifyElementClicked(text);
           success = clickSuccess && verified;
           result = success
@@ -171,8 +170,6 @@ class ActionHandler {
             text,
             fieldHint: hint,
           );
-
-          // REAL VERIFICATION: Verify text was actually typed
           final verified = await _verification.verifyTextTyped(
             text,
             fieldHint: hint,
@@ -186,12 +183,7 @@ class ActionHandler {
         case 'scroll_screen':
           final direction = action.params['direction'] as String? ?? 'down';
           final scrollSuccess = await _screenAutomation.scroll(direction);
-
-          // REAL VERIFICATION: Verify scroll happened
-          final verified = await _verification.verifyScreenAction(
-            'scroll',
-            null,
-          );
+          final verified = await _verification.verifyScreenAction('scroll', null);
           success = scrollSuccess && verified;
           result = success
               ? 'Scrolled $direction'
@@ -203,8 +195,6 @@ class ActionHandler {
           success = backSuccess;
           result = success ? 'Pressed back' : 'Could not press back';
           break;
-
-        // ─── Multi-Step Task Execution ────────────────────────
 
         case 'execute_task':
           final goal = action.params['goal'] as String? ?? action.response;
@@ -225,8 +215,6 @@ class ActionHandler {
           _currentExecutor = null;
           break;
 
-        // ─── File Operations ────────────────────────
-
         case 'read_file':
           result = await _fileOps.readTextFile(
             action.params['path'] as String? ?? '',
@@ -239,9 +227,7 @@ class ActionHandler {
             action.params['path'] as String? ?? '',
             action.params['content'] as String? ?? '',
           );
-          result = success
-              ? 'File written successfully'
-              : 'Could not write file';
+          result = success ? 'File written successfully' : 'Could not write file';
           break;
 
         case 'list_directory':
@@ -293,17 +279,13 @@ class ActionHandler {
           success = true;
           break;
 
-        // ─── Web Operations ────────────────────────
-
         case 'search':
           final engine = action.params['engine'] as String? ?? 'google';
           success = await _webOps.search(
             action.params['query'] as String? ?? '',
             engine: engine,
           );
-          result = success
-              ? 'Search opened in browser'
-              : 'Could not open search';
+          result = success ? 'Search opened in browser' : 'Could not open search';
           break;
 
         case 'open_url':
@@ -358,7 +340,6 @@ class ActionHandler {
     return !failureMarkers.any(normalized.contains);
   }
 
-  /// Cancel the currently running task
   void cancelTask() {
     _currentExecutor?.cancel();
   }
