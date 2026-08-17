@@ -33,4 +33,4 @@ jobs:
       - name: Android packaging diagnostics
         run: |
           cd android
-          ./gradlew app:packageDebug --stacktrace --info --no-daemon
+          gradle app:packageDebug --stacktrace --info --no-daemon
