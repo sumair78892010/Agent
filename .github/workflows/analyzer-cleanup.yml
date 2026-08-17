@@ -1,0 +1,49 @@
+name: Controlled analyzer cleanup
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    if: ${{ !contains(github.event.head_commit.message, 'analyzer-cleanup') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Dependencies
+        run: flutter pub get
+
+      - name: Apply official Dart fixes
+        run: dart fix --apply
+
+      - name: Format Dart sources
+        run: dart format lib test
+
+      - name: Validate analyzer
+        run: flutter analyze --no-fatal-warnings --no-fatal-infos
+
+      - name: Commit verified cleanup
+        run: |
+          git config user.name 'Agent Cypher Maintainer'
+          git config user.email 'actions@github.com'
+          git add lib test
+          if git diff --cached --quiet; then
+            echo 'No analyzer cleanup changes required.'
+          else
+            git commit -m 'chore: apply verified analyzer cleanup [analyzer-cleanup]'
+            git push origin main
+          fi
