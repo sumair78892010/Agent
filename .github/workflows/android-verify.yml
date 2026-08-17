@@ -14,6 +14,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
@@ -32,6 +34,21 @@ jobs:
 
       - name: Dependencies
         run: flutter pub get
+
+      - name: Apply verified task completion migration
+        if: ${{ !contains(github.event.head_commit.message, 'task-integrity-fix') }}
+        run: |
+          python3 tooling/apply_task_integrity_fix.py
+          dart format lib/services/task_executor.dart
+          git config user.name 'Agent Cypher Maintainer'
+          git config user.email 'actions@github.com'
+          git add lib/services/task_executor.dart
+          if git diff --cached --quiet; then
+            echo 'No task completion changes required.'
+          else
+            git commit -m 'fix: verify task completion against observable state [task-integrity-fix]'
+            git push origin main
+          fi
 
       - name: Analyze
         run: flutter analyze
