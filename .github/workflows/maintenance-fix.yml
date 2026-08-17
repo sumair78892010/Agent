@@ -21,7 +21,7 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Apply safe analyzer migrations
+      - name: Apply safe analyzer migrations and task verification hardening
         shell: python
         run: |
           from pathlib import Path
@@ -29,10 +29,6 @@ jobs:
 
           root = Path('.')
 
-          # Flutter 3.27+ stores alpha as a floating-point component. The
-          # framework documents withValues(alpha:) as the precise replacement
-          # for withOpacity(). Only transform simple call expressions here;
-          # complex cases are left for deliberate review.
           for path in root.glob('lib/**/*.dart'):
               text = path.read_text()
               updated = re.sub(
@@ -43,19 +39,37 @@ jobs:
               if updated != text:
                   path.write_text(updated)
 
-          # Tests should use package imports when reaching into lib/.
           for path in root.glob('test/**/*.dart'):
               text = path.read_text()
               updated = text.replace("../lib/", "package:agent_cypher/")
               if updated != text:
                   path.write_text(updated)
 
-          # Modern Material 3 replacement for the deprecated ButtonBar.
           for path in root.glob('lib/**/*.dart'):
               text = path.read_text()
               updated = text.replace('ButtonBar(', 'OverflowBar(')
               if updated != text:
                   path.write_text(updated)
+
+          task_path = root / 'lib/services/task_executor.dart'
+          task = task_path.read_text()
+
+          old_prompt = '- If stuck after 3 attempts, set is_complete=true and explain in reasoning.\n'
+          new_prompt = '- Never set is_complete=true merely to escape a stuck state. If the goal is not visibly complete, choose a recovery or navigation action instead.\n'
+          if old_prompt in task:
+              task = task.replace(old_prompt, new_prompt, 1)
+
+          old_generic = '    // Generic completion still requires non-trivial observable screen state.\n    return visible.trim().length >= 20;\n'
+          new_generic = '    // Never accept generic screen content as proof of completion.\n    // A responsive screen is not evidence that the user goal was achieved.\n    return false;\n'
+          if old_generic in task:
+              task = task.replace(old_generic, new_generic, 1)
+
+          old_memory = "        case 'done':\n          success = true;\n          actionResult = 'Done step reached';\n          break;\n"
+          new_memory = "        case 'done':\n          success = false;\n          actionResult = 'Saved skill contained an unverified done marker';\n          break;\n"
+          if old_memory in task:
+              task = task.replace(old_memory, new_memory, 1)
+
+          task_path.write_text(task)
 
       - name: Verify formatting and analyzer
         run: |
