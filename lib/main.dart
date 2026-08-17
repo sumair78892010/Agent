@@ -1,14 +1,13 @@
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 import 'dart:developer';
-import 'config/feature_flags.dart';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_overlay_window/flutter_overlay_window.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import 'config/app_theme.dart';
-import 'screens/home_screen.dart';
-import 'screens/onboarding_screen.dart';
-import 'screens/startup_screen.dart';
+import 'config/feature_flags.dart';
 import 'overlay_main.dart';
+import 'screens/startup_screen.dart';
 import 'services/agent_setup.dart';
 
 @pragma("vm:entry-point")
@@ -21,13 +20,14 @@ void overlayMain() {
         canvasColor: Colors.transparent,
         scaffoldBackgroundColor: Colors.transparent,
         cardColor: Colors.white,
-        dialogBackgroundColor: Colors.transparent,
+        dialogTheme: const DialogThemeData(
+          backgroundColor: Colors.transparent,
+        ),
         primaryColor: const Color(0xFF4F46E5),
         useMaterial3: true,
         colorScheme: const ColorScheme.light(
-          background: Colors.transparent,
+          surface: Colors.transparent,
           primary: Color(0xFF4F46E5),
-          surface: Colors.white,
           onSurface: Color(0xFF1E293B),
           onPrimary: Colors.white,
         ),
@@ -47,14 +47,12 @@ void Function(String task)? onOverlayTask;
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Agent Cypher services
   try {
     final agent = AgentSetup();
     await agent.initialize();
     log('Agent Cypher initialization successful', name: 'main');
   } catch (e) {
     log('Agent Cypher initialization failed: $e', name: 'main', level: 2000);
-    // Continue anyway - some features may still work
   }
 
   if (FeatureFlags.floatingOverlayEnabled) {
