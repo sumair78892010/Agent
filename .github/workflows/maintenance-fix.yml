@@ -1,0 +1,76 @@
+name: One-time code hygiene maintenance
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  hygiene:
+    if: ${{ !contains(github.event.head_commit.message, '[maintenance]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Apply safe analyzer migrations
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          root = Path('.')
+
+          # Flutter 3.27+ stores alpha as a floating-point component. The
+          # framework documents withValues(alpha:) as the precise replacement
+          # for withOpacity(). Only transform simple call expressions here;
+          # complex cases are left for deliberate review.
+          for path in root.glob('lib/**/*.dart'):
+              text = path.read_text()
+              updated = re.sub(
+                  r'\.withOpacity\((0(?:\.\d+)?|1(?:\.0+)?)\)',
+                  r'.withValues(alpha: \1)',
+                  text,
+              )
+              if updated != text:
+                  path.write_text(updated)
+
+          # Tests should use package imports when reaching into lib/.
+          for path in root.glob('test/**/*.dart'):
+              text = path.read_text()
+              updated = text.replace("../lib/", "package:agent_cypher/")
+              if updated != text:
+                  path.write_text(updated)
+
+          # Modern Material 3 replacement for the deprecated ButtonBar.
+          for path in root.glob('lib/**/*.dart'):
+              text = path.read_text()
+              updated = text.replace('ButtonBar(', 'OverflowBar(')
+              if updated != text:
+                  path.write_text(updated)
+
+      - name: Verify formatting and analyzer
+        run: |
+          dart format lib test
+          flutter analyze
+
+      - name: Commit maintenance changes
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo 'No maintenance changes were necessary.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add lib test
+          git commit -m 'chore: apply safe Flutter analyzer migrations [maintenance]'
+          git push origin HEAD:main
