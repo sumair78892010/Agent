@@ -21,53 +21,93 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Apply safe analyzer migrations and task verification hardening
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Apply safe analyzer fixes and repair task verification source
         shell: python
         run: |
           from pathlib import Path
-          import re
 
           root = Path('.')
 
-          for path in root.glob('lib/**/*.dart'):
-              text = path.read_text()
-              updated = re.sub(
-                  r'\.withOpacity\((0(?:\.\d+)?|1(?:\.0+)?)\)',
-                  r'.withValues(alpha: \1)',
-                  text,
-              )
-              if updated != text:
-                  path.write_text(updated)
-
-          for path in root.glob('test/**/*.dart'):
-              text = path.read_text()
-              updated = text.replace("../lib/", "package:agent_cypher/")
-              if updated != text:
-                  path.write_text(updated)
-
-          for path in root.glob('lib/**/*.dart'):
-              text = path.read_text()
-              updated = text.replace('ButtonBar(', 'OverflowBar(')
-              if updated != text:
-                  path.write_text(updated)
+          # Use the official Dart quick-fix engine first; it handles framework
+          # migrations more safely than broad text substitutions.
+          import subprocess
+          subprocess.run(['dart', 'fix', '--apply'], check=True)
 
           task_path = root / 'lib/services/task_executor.dart'
           task = task_path.read_text()
 
-          old_prompt = '- If stuck after 3 attempts, set is_complete=true and explain in reasoning.\n'
-          new_prompt = '- Never set is_complete=true merely to escape a stuck state. If the goal is not visibly complete, choose a recovery or navigation action instead.\n'
-          if old_prompt in task:
-              task = task.replace(old_prompt, new_prompt, 1)
+          # The previous maintenance pass accidentally duplicated the completion
+          # verifier. Keep exactly one definition and harden its generic fallback.
+          marker = '  /// Verifies model-declared completion against observable device state.\n'
+          positions = []
+          start = 0
+          while True:
+              pos = task.find(marker, start)
+              if pos < 0:
+                  break
+              positions.append(pos)
+              start = pos + len(marker)
 
-          old_generic = '    // Generic completion still requires non-trivial observable screen state.\n    return visible.trim().length >= 20;\n'
-          new_generic = '    // Never accept generic screen content as proof of completion.\n    // A responsive screen is not evidence that the user goal was achieved.\n    return false;\n'
-          if old_generic in task:
-              task = task.replace(old_generic, new_generic, 1)
+          if positions:
+              # Rebuild from the first verifier and remove every later duplicate.
+              first = positions[0]
+              search_from = first
+              method_start = task.find('  Future<bool> _verifyGoalCompletion(', search_from)
+              if method_start >= 0:
+                  brace_start = task.find('{', method_start)
+                  depth = 0
+                  method_end = -1
+                  for i in range(brace_start, len(task)):
+                      if task[i] == '{':
+                          depth += 1
+                      elif task[i] == '}':
+                          depth -= 1
+                          if depth == 0:
+                              method_end = i + 1
+                              break
+                  if method_end > 0:
+                      duplicate_positions = []
+                      cursor = method_end
+                      while True:
+                          pos = task.find(marker, cursor)
+                          if pos < 0:
+                              break
+                          duplicate_positions.append(pos)
+                          cursor = pos + len(marker)
+                      for pos in reversed(duplicate_positions):
+                          dup_method = task.find('  Future<bool> _verifyGoalCompletion(', pos)
+                          if dup_method < 0:
+                              continue
+                          dup_brace = task.find('{', dup_method)
+                          depth = 0
+                          dup_end = -1
+                          for i in range(dup_brace, len(task)):
+                              if task[i] == '{':
+                                  depth += 1
+                              elif task[i] == '}':
+                                  depth -= 1
+                                  if depth == 0:
+                                      dup_end = i + 1
+                                      break
+                          if dup_end > 0:
+                              task = task[:pos] + task[dup_end:]
 
-          old_memory = "        case 'done':\n          success = true;\n          actionResult = 'Done step reached';\n          break;\n"
-          new_memory = "        case 'done':\n          success = false;\n          actionResult = 'Saved skill contained an unverified done marker';\n          break;\n"
-          if old_memory in task:
-              task = task.replace(old_memory, new_memory, 1)
+          # Generic screen text is never proof that an arbitrary user goal is done.
+          task = task.replace(
+              '    // Generic completion still requires non-trivial observable screen state.\n'
+              '    return visible.trim().length >= 20;',
+              '    // A responsive screen is not evidence that the root goal was achieved.\n'
+              '    return false;',
+          )
+
+          # The model must never escape a stuck state by declaring completion.
+          task = task.replace(
+              '- If stuck after 3 attempts, set is_complete=true and explain in reasoning.',
+              '- Never set is_complete=true merely to escape a stuck state. If the goal is not visibly complete, choose a recovery or navigation action instead.',
+          )
 
           task_path.write_text(task)
 
@@ -86,5 +126,5 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add lib test
-          git commit -m 'chore: apply safe Flutter analyzer migrations [maintenance]'
+          git commit -m 'chore: complete analyzer health cleanup [maintenance]'
           git push origin HEAD:main
