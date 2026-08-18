@@ -1,3 +1,4 @@
+import 'dart:developer' as developer;
 import 'dart:convert';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
@@ -6,14 +7,14 @@ import 'package:path_provider/path_provider.dart';
 /// Per spec section 17: Support remembering user preferences and facts
 class UserMemoryService {
   static const String _memoryFile = 'user_memory.json';
-  
+
   Map<String, dynamic> _memory = {
     'preferences': {},
     'facts': [],
     'instructions': [],
     'device_preferences': {},
   };
-  
+
   bool _isLoaded = false;
   bool _automaticMemoryEnabled = true;
 
@@ -34,7 +35,7 @@ class UserMemoryService {
       }
       _isLoaded = true;
     } catch (e) {
-      print('Error loading memory: $e');
+      developer.log('Error loading memory: $e');
       _isLoaded = true;
     }
   }
@@ -46,7 +47,7 @@ class UserMemoryService {
       final file = await _memoryFilePath;
       await file.writeAsString(jsonEncode(_memory));
     } catch (e) {
-      print('Error saving memory: $e');
+      developer.log('Error saving memory: $e');
     }
   }
 
@@ -67,14 +68,11 @@ class UserMemoryService {
   Future<void> rememberFact(String fact) async {
     await load();
     _memory['facts'] ??= [];
-    
+
     // Check for duplicates
     final facts = _memory['facts'] as List;
     if (!facts.any((f) => f['fact'] == fact)) {
-      facts.add({
-        'fact': fact,
-        'timestamp': DateTime.now().toIso8601String(),
-      });
+      facts.add({'fact': fact, 'timestamp': DateTime.now().toIso8601String()});
       await _save();
     }
   }
@@ -84,7 +82,7 @@ class UserMemoryService {
   Future<void> rememberInstruction(String instruction) async {
     await load();
     _memory['instructions'] ??= [];
-    
+
     // Check for duplicates
     final instructions = _memory['instructions'] as List;
     if (!instructions.any((i) => i['instruction'] == instruction)) {
@@ -130,14 +128,18 @@ class UserMemoryService {
   Future<List<String>> getFacts() async {
     await load();
     final facts = _memory['facts'] as List? ?? [];
-    return facts.map((f) => f is Map ? f['fact'] as String : f as String).toList();
+    return facts
+        .map((f) => f is Map ? f['fact'] as String : f as String)
+        .toList();
   }
 
   /// Get all instructions
   Future<List<String>> getInstructions() async {
     await load();
     final instructions = _memory['instructions'] as List? ?? [];
-    return instructions.map((i) => i is Map ? i['instruction'] as String : i as String).toList();
+    return instructions
+        .map((i) => i is Map ? i['instruction'] as String : i as String)
+        .toList();
   }
 
   /// Get all device preferences
@@ -159,7 +161,9 @@ class UserMemoryService {
   Future<void> forgetInstruction(String instruction) async {
     await load();
     final instructions = _memory['instructions'] as List? ?? [];
-    instructions.removeWhere((i) => i is Map ? i['instruction'] == instruction : i == instruction);
+    instructions.removeWhere(
+      (i) => i is Map ? i['instruction'] == instruction : i == instruction,
+    );
     await _save();
   }
 
@@ -183,54 +187,62 @@ class UserMemoryService {
     final preferences = _memory['preferences'] as Map? ?? {};
     for (final entry in preferences.entries) {
       final raw = entry.value;
-      records.add(MemoryRecord(
-        id: 'preference:${entry.key}',
-        category: 'preferences',
-        value: raw is Map ? '${raw['value'] ?? ''}' : '$raw',
-        reason: 'Saved as a user preference',
-        timestamp: raw is Map
-            ? DateTime.tryParse('${raw['timestamp'] ?? ''}')
-            : null,
-      ));
+      records.add(
+        MemoryRecord(
+          id: 'preference:${entry.key}',
+          category: 'preferences',
+          value: raw is Map ? '${raw['value'] ?? ''}' : '$raw',
+          reason: 'Saved as a user preference',
+          timestamp: raw is Map
+              ? DateTime.tryParse('${raw['timestamp'] ?? ''}')
+              : null,
+        ),
+      );
     }
     final facts = _memory['facts'] as List? ?? [];
     for (final item in facts) {
       final value = item is Map ? '${item['fact'] ?? ''}' : '$item';
-      records.add(MemoryRecord(
-        id: 'fact:$value',
-        category: 'facts',
-        value: value,
-        reason: 'Saved as a user fact',
-        timestamp: item is Map
-            ? DateTime.tryParse('${item['timestamp'] ?? ''}')
-            : null,
-      ));
+      records.add(
+        MemoryRecord(
+          id: 'fact:$value',
+          category: 'facts',
+          value: value,
+          reason: 'Saved as a user fact',
+          timestamp: item is Map
+              ? DateTime.tryParse('${item['timestamp'] ?? ''}')
+              : null,
+        ),
+      );
     }
     final instructions = _memory['instructions'] as List? ?? [];
     for (final item in instructions) {
       final value = item is Map ? '${item['instruction'] ?? ''}' : '$item';
-      records.add(MemoryRecord(
-        id: 'instruction:$value',
-        category: 'instructions',
-        value: value,
-        reason: 'Saved as an agent instruction',
-        timestamp: item is Map
-            ? DateTime.tryParse('${item['timestamp'] ?? ''}')
-            : null,
-      ));
+      records.add(
+        MemoryRecord(
+          id: 'instruction:$value',
+          category: 'instructions',
+          value: value,
+          reason: 'Saved as an agent instruction',
+          timestamp: item is Map
+              ? DateTime.tryParse('${item['timestamp'] ?? ''}')
+              : null,
+        ),
+      );
     }
     final device = _memory['device_preferences'] as Map? ?? {};
     for (final entry in device.entries) {
       final raw = entry.value;
-      records.add(MemoryRecord(
-        id: 'device:${entry.key}',
-        category: 'device preferences',
-        value: '${entry.key}: ${raw is Map ? raw['value'] ?? '' : raw}',
-        reason: 'Saved as a device preference',
-        timestamp: raw is Map
-            ? DateTime.tryParse('${raw['timestamp'] ?? ''}')
-            : null,
-      ));
+      records.add(
+        MemoryRecord(
+          id: 'device:${entry.key}',
+          category: 'device preferences',
+          value: '${entry.key}: ${raw is Map ? raw['value'] ?? '' : raw}',
+          reason: 'Saved as a device preference',
+          timestamp: raw is Map
+              ? DateTime.tryParse('${raw['timestamp'] ?? ''}')
+              : null,
+        ),
+      );
     }
     return List.unmodifiable(records);
   }
@@ -281,7 +293,7 @@ class UserMemoryService {
   Future<String> getMemorySummary() async {
     await load();
     final buffer = StringBuffer();
-    
+
     final prefs = await getPreferences();
     if (prefs.isNotEmpty) {
       buffer.writeln('User Preferences:');
@@ -289,27 +301,26 @@ class UserMemoryService {
         buffer.writeln('  - $k: $v');
       });
     }
-    
+
     final facts = await getFacts();
     if (facts.isNotEmpty) {
       buffer.writeln('User Facts:');
-      facts.forEach((f) {
+      for (final f in facts) {
         buffer.writeln('  - $f');
-      });
+      }
     }
-    
+
     final instructions = await getInstructions();
     if (instructions.isNotEmpty) {
       buffer.writeln('User Instructions:');
-      instructions.forEach((i) {
+      for (final i in instructions) {
         buffer.writeln('  - $i');
-      });
+      }
     }
-    
+
     return buffer.toString();
   }
 }
-
 
 class MemoryRecord {
   final String id;

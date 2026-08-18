@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 class ActionStep {
   final String action;
   final Map<String, dynamic> params;
@@ -14,10 +12,7 @@ class ActionStep {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'action': action,
-      'params': params,
-    };
+    return {'action': action, 'params': params};
   }
 }
 
@@ -40,7 +35,8 @@ class SavedSkill {
     required this.steps,
   });
 
-  bool get isReliable => successCount >= 1 && (failCount / (successCount + failCount)) < 0.3;
+  bool get isReliable =>
+      successCount >= 1 && (failCount / (successCount + failCount)) < 0.3;
 
   factory SavedSkill.fromJson(Map<String, dynamic> json) {
     return SavedSkill(
@@ -50,7 +46,9 @@ class SavedSkill {
       successCount: json['success_count'] as int? ?? 0,
       failCount: json['fail_count'] as int? ?? 0,
       lastUsed: DateTime.parse(json['last_used'] as String),
-      steps: (json['steps'] as List).map((s) => ActionStep.fromJson(s as Map<String, dynamic>)).toList(),
+      steps: (json['steps'] as List)
+          .map((s) => ActionStep.fromJson(s as Map<String, dynamic>))
+          .toList(),
     );
   }
 

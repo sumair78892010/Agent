@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import '../lib/services/artifact_service.dart';
+import 'package:agent_cypher/services/artifact_service.dart';
 
 void main() {
   test('artifact metadata excludes storage paths and content', () {

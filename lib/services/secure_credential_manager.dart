@@ -3,25 +3,25 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 /// Manages secure credential storage for API keys and sensitive data
 class SecureCredentialManager {
-  static final SecureCredentialManager _instance = SecureCredentialManager._internal();
-  
+  static final SecureCredentialManager _instance =
+      SecureCredentialManager._internal();
+
   factory SecureCredentialManager() {
     return _instance;
   }
-  
+
   SecureCredentialManager._internal();
 
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage(
     aOptions: AndroidOptions(
-      keyCipherAlgorithm: KeyCipherAlgorithm.RSA_ECB_OAEPwithSHA_256andMGF1Padding,
+      keyCipherAlgorithm:
+          KeyCipherAlgorithm.RSA_ECB_OAEPwithSHA_256andMGF1Padding,
       storageCipherAlgorithm: StorageCipherAlgorithm.AES_GCM_NoPadding,
     ),
   );
   late SharedPreferences _prefs;
-  
+
   // Credential keys
-  static const String _keyNvidiaApiKey = 'nvidia_api_key';
-  static const String _keyCustomApiKey = 'custom_api_key';
   static const String _keyCustomBaseUrl = 'custom_base_url';
   static const String _keyCustomModel = 'custom_model';
 
@@ -31,10 +31,7 @@ class SecureCredentialManager {
 
   /// Save API key securely
   Future<void> saveApiKey(String key, String providerId) async {
-    await _secureStorage.write(
-      key: '${providerId}_api_key',
-      value: key,
-    );
+    await _secureStorage.write(key: '${providerId}_api_key', value: key);
   }
 
   /// Retrieve API key securely
@@ -99,15 +96,12 @@ class SecureCredentialManager {
   /// Get all saved providers (without exposing keys)
   Map<String, Map<String, String>> getSavedProviders() {
     final providers = <String, Map<String, String>>{};
-    
+
     // NVIDIA
     if (_prefs.getString('nvidia_model') != null) {
-      providers['nvidia'] = {
-        'name': 'NVIDIA',
-        'model': getNvidiaModel(),
-      };
+      providers['nvidia'] = {'name': 'NVIDIA', 'model': getNvidiaModel()};
     }
-    
+
     // Custom
     if (getCustomBaseUrl().isNotEmpty && getCustomModel().isNotEmpty) {
       providers['custom'] = {
@@ -116,7 +110,7 @@ class SecureCredentialManager {
         'model': getCustomModel(),
       };
     }
-    
+
     return providers;
   }
 

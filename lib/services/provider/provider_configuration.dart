@@ -70,12 +70,12 @@ class ProviderConfiguration {
   bool supports(String capability) => capabilities.contains(capability);
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'baseUrl': baseUrl,
-        'model': model,
-        'capabilities': capabilities,
-      };
+    'id': id,
+    'name': name,
+    'baseUrl': baseUrl,
+    'model': model,
+    'capabilities': capabilities,
+  };
 
   factory ProviderConfiguration.fromJson(Map<String, dynamic> json) {
     final rawCapabilities = json['capabilities'];

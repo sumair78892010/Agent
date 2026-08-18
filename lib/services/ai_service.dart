@@ -755,7 +755,7 @@ Answer questions, explain concepts, brainstorm, write emails/messages, and chat 
         int delaySeconds = 3 * currentTry;
         developer.log(
           'API call failed ($e), retrying $currentTry/$maxRetries in $delaySeconds seconds...',
-          name: 'PrivateAgent',
+          name: 'AgentCypher',
         );
         await Future.delayed(Duration(seconds: delaySeconds));
       }
@@ -843,7 +843,7 @@ Answer questions, explain concepts, brainstorm, write emails/messages, and chat 
       }
       return [];
     } catch (e) {
-      print('Error fetching models: $e');
+      developer.log('Error fetching models: $e');
       return [];
     }
   }

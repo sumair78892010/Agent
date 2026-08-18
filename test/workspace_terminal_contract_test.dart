@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import '../lib/services/diagnostics_service.dart';
-import '../lib/services/task_telemetry_service.dart';
+import 'package:agent_cypher/services/diagnostics_service.dart';
+import 'package:agent_cypher/services/task_telemetry_service.dart';
 
 void main() {
   final telemetry = TaskTelemetryService.shared;
@@ -36,9 +36,18 @@ void main() {
     );
 
     final snapshot = telemetry.developerState.value;
-    expect(snapshot.workspaceCommands.single.command, isNot(contains('sk-command-secret')));
-    expect(snapshot.workspaceCommands.single.output, isNot(contains('private-token')));
-    expect(snapshot.workspaceCommands.single.output, isNot(contains('sk-output-secret')));
+    expect(
+      snapshot.workspaceCommands.single.command,
+      isNot(contains('sk-command-secret')),
+    );
+    expect(
+      snapshot.workspaceCommands.single.output,
+      isNot(contains('private-token')),
+    );
+    expect(
+      snapshot.workspaceCommands.single.output,
+      isNot(contains('sk-output-secret')),
+    );
 
     final report = DiagnosticsService.buildSanitizedDeveloperReport(
       snapshot: snapshot,

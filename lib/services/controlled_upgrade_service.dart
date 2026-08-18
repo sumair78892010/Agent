@@ -269,7 +269,7 @@ class ControlledUpgradeService {
         feature.contains('automation') ||
         feature.contains('provider');
     final stages = <UpgradePlanStage>[
-      const UpgradePlanStage(
+      UpgradePlanStage(
         id: 'inspect',
         title: 'Inspect current architecture',
         status: 'completed',
@@ -293,7 +293,7 @@ class ControlledUpgradeService {
         selectedTests: selectedTests,
         expectedResult: 'Only explicitly allowed project files are in scope.',
       ),
-      const UpgradePlanStage(
+      UpgradePlanStage(
         id: 'design',
         title: 'Design minimal change set',
         status: 'completed',
@@ -346,7 +346,7 @@ class ControlledUpgradeService {
         expectedResult:
             'Focused tests cover the requested behavior and failure paths.',
       ),
-      const UpgradePlanStage(
+      UpgradePlanStage(
         id: 'validate',
         title: 'Validate and inspect errors',
         status: 'pending',
@@ -357,7 +357,7 @@ class ControlledUpgradeService {
         expectedResult:
             'Static analysis and selected tests pass before the stage is kept.',
       ),
-      const UpgradePlanStage(
+      UpgradePlanStage(
         id: 'report',
         title: 'Report completion',
         status: 'pending',
@@ -546,8 +546,9 @@ Return only one exact patch for an explicitly allowed existing file.''';
     final repoPath = _repoPath;
     final task = _lastTask;
     final problem = _lastProblem;
-    if (plan == null || repoPath == null || task == null || problem == null)
+    if (plan == null || repoPath == null || task == null || problem == null) {
       return;
+    }
     if (plan.currentStageIndex < plan.stages.length &&
         plan.stages[plan.currentStageIndex].requiresPatch &&
         plan.stages[plan.currentStageIndex].status != 'validated') {
@@ -1130,8 +1131,9 @@ Return only one exact patch for an explicitly allowed existing file.''';
   }
 
   static bool _isSafeRelativePath(String value) {
-    if (value.isEmpty || value.startsWith('/') || value.contains(':'))
+    if (value.isEmpty || value.startsWith('/') || value.contains(':')) {
       return false;
+    }
     final parts = value.split('/');
     return !parts.contains('..') &&
         !parts.contains('.') &&
@@ -1266,8 +1268,9 @@ Return only one exact patch for an explicitly allowed existing file.''';
         throw StateError(_sanitize(result.stderr.toString()));
       }
       final decoded = jsonDecode(output.trim());
-      if (decoded is! Map)
+      if (decoded is! Map) {
         throw const FormatException('Worker output was not JSON.');
+      }
       final map = Map<String, dynamic>.from(decoded);
       if (!apply && await proposalFile.exists()) {
         map['proposal'] = jsonDecode(await proposalFile.readAsString());

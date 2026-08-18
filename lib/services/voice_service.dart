@@ -66,18 +66,19 @@ class VoiceService {
       // Bridge the native foreground wake-word service into the same event
       // stream consumed by the UI. Native uses "wake_word"; Flutter exposes
       // the stable "wake_word_detected" event to avoid leaking platform names.
-      _wakeWordEvents ??= _wakeWordEventChannel
-          .receiveBroadcastStream()
-          .listen(_handleNativeWakeWordEvent, onError: (Object error) {
-        _wakeWordAvailable = false;
-        _wakeWordListening = false;
-        _eventController.add(
-          VoiceEvent(
-            type: 'wake_word_error',
-            message: 'Wake-word event channel error: $error',
-          ),
-        );
-      });
+      _wakeWordEvents ??= _wakeWordEventChannel.receiveBroadcastStream().listen(
+        _handleNativeWakeWordEvent,
+        onError: (Object error) {
+          _wakeWordAvailable = false;
+          _wakeWordListening = false;
+          _eventController.add(
+            VoiceEvent(
+              type: 'wake_word_error',
+              message: 'Wake-word event channel error: $error',
+            ),
+          );
+        },
+      );
 
       _eventController.add(
         VoiceEvent(type: 'initialized', message: 'Voice service initialized'),
@@ -117,7 +118,8 @@ class VoiceService {
         _eventController.add(
           VoiceEvent(
             type: 'wake_word_unavailable',
-            message: event['reason']?.toString() ??
+            message:
+                event['reason']?.toString() ??
                 'Background wake-word recognition is unavailable.',
             wakeWordAvailable: false,
             wakeWordEnabled: _wakeWordEnabled,
@@ -165,7 +167,8 @@ class VoiceService {
         _eventController.add(
           VoiceEvent(
             type: 'wake_word_error',
-            message: event['message']?.toString() ??
+            message:
+                event['message']?.toString() ??
                 'Background wake-word recognition failed.',
             wakeWordAvailable: _wakeWordAvailable,
             wakeWordEnabled: _wakeWordEnabled,
@@ -276,7 +279,9 @@ class VoiceService {
 
   Future<Map<String, dynamic>> getWakeWordStatus() async {
     try {
-      final raw = await _nativeChannel.invokeMethod<dynamic>('getWakeWordStatus');
+      final raw = await _nativeChannel.invokeMethod<dynamic>(
+        'getWakeWordStatus',
+      );
       final status = raw is Map
           ? raw.map((key, value) => MapEntry('$key', value))
           : <String, dynamic>{};
@@ -416,7 +421,5 @@ class VoiceEvent {
 
   @override
   String toString() =>
-      'VoiceEvent($type: $message' +
-      (content != null ? ', "$content"' : '') +
-      ')';
+      'VoiceEvent($type: $message${content != null ? ", \"$content\"" : ""})';
 }

@@ -114,7 +114,7 @@ class ResearchReport {
         );
       }
       for (final group in evidenceGroups.take(12)) {
-        output..writeln(
+        output.writeln(
           '- **${_clean(group.topic)}** — ${group.dispositionLabel}, ${group.confidenceLabel} confidence, ${group.fresh ? 'fresh' : 'older'} evidence (${group.sources.length} source(s)).',
         );
       }
@@ -203,8 +203,9 @@ class ResearchReportService {
     final normalizedQueries = <String>[];
     for (final query in [if (queries.isEmpty) cleanGoal, ...queries]) {
       final cleanQuery = ArtifactService.sanitize(query.trim());
-      if (cleanQuery.isEmpty || normalizedQueries.contains(cleanQuery))
+      if (cleanQuery.isEmpty || normalizedQueries.contains(cleanQuery)) {
         continue;
+      }
       normalizedQueries.add(cleanQuery);
       if (normalizedQueries.length >= maxQueries) break;
     }

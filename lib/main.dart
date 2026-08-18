@@ -8,7 +8,6 @@ import 'config/app_theme.dart';
 import 'config/feature_flags.dart';
 import 'overlay_main.dart';
 import 'screens/startup_screen.dart';
-import 'services/agent_setup.dart';
 
 @pragma("vm:entry-point")
 void overlayMain() {
@@ -20,9 +19,7 @@ void overlayMain() {
         canvasColor: Colors.transparent,
         scaffoldBackgroundColor: Colors.transparent,
         cardColor: Colors.white,
-        dialogTheme: const DialogThemeData(
-          backgroundColor: Colors.transparent,
-        ),
+        dialogTheme: const DialogThemeData(backgroundColor: Colors.transparent),
         primaryColor: const Color(0xFF4F46E5),
         useMaterial3: true,
         colorScheme: const ColorScheme.light(
@@ -46,14 +43,6 @@ void Function(String task)? onOverlayTask;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  try {
-    final agent = AgentSetup();
-    await agent.initialize();
-    log('Agent Cypher initialization successful', name: 'main');
-  } catch (e) {
-    log('Agent Cypher initialization failed: $e', name: 'main', level: 2000);
-  }
 
   if (FeatureFlags.floatingOverlayEnabled) {
     FlutterOverlayWindow.overlayListener.listen((event) {

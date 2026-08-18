@@ -413,7 +413,8 @@ class _SettingsScreenState extends State<SettingsScreen>
                       modelController.text.trim().isEmpty ||
                       selected.isEmpty ||
                       effectiveKey.isEmpty) {
-                    ScaffoldMessenger.of(this.context).showSnackBar(
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text(
                           'Enter provider details, an API key, and at least one capability.',
@@ -443,12 +444,13 @@ class _SettingsScreenState extends State<SettingsScreen>
                       });
                     if (dialogContext.mounted) Navigator.pop(dialogContext);
                   } catch (error) {
-                    if (mounted)
-                      ScaffoldMessenger.of(this.context).showSnackBar(
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text('Could not save provider: $error'),
                         ),
                       );
+                    }
                   }
                 },
                 child: const Text('Save'),
@@ -778,7 +780,9 @@ class _SettingsScreenState extends State<SettingsScreen>
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).primaryColor.withOpacity(0.12),
+                    color: Theme.of(
+                      context,
+                    ).primaryColor.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(
@@ -1321,7 +1325,7 @@ class _SettingsScreenState extends State<SettingsScreen>
               ),
               if (_providerConfigurations.isNotEmpty)
                 DropdownButtonFormField<String>(
-                  value:
+                  initialValue:
                       _providerConfigurations.any(
                         (configuration) =>
                             configuration.id == _activeProviderId,
@@ -2311,7 +2315,7 @@ class _SettingsScreenState extends State<SettingsScreen>
             ),
             const SizedBox(height: 6),
             if (snapshot.workspaceCommands.isEmpty)
-              const Text('No workspace commands recorded yet.')
+              {const Text('No workspace commands recorded yet.')}
             else
               ...snapshot.workspaceCommands.reversed
                   .take(8)
@@ -2366,7 +2370,7 @@ class _SettingsScreenState extends State<SettingsScreen>
             ),
             const SizedBox(height: 6),
             if (snapshot.upgradePlan == null)
-              const Text('No active workspace plan.')
+              {const Text('No active workspace plan.')}
             else ...[
               Card(
                 child: Padding(
@@ -2402,7 +2406,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                       ),
                       const SizedBox(height: 4),
                       if (snapshot.upgradePlan!.impactedFiles.isEmpty)
-                        const Text('No impacted files recorded.')
+                        {const Text('No impacted files recorded.')}
                       else
                         ...snapshot.upgradePlan!.impactedFiles.map(
                           (file) => ListTile(

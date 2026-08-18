@@ -1,3 +1,4 @@
+import 'dart:developer' as developer;
 import 'dart:convert';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
@@ -23,11 +24,14 @@ class SkillMemoryService {
       final lines = await file.readAsLines();
       _skills = lines
           .where((line) => line.trim().isNotEmpty)
-          .map((line) => SavedSkill.fromJson(jsonDecode(line) as Map<String, dynamic>))
+          .map(
+            (line) =>
+                SavedSkill.fromJson(jsonDecode(line) as Map<String, dynamic>),
+          )
           .toList();
       _isLoaded = true;
     } catch (e) {
-      print('Failed to load skills: $e');
+      developer.log('Failed to load skills: $e');
     }
   }
 
@@ -37,13 +41,32 @@ class SkillMemoryService {
       final lines = _skills.map((s) => jsonEncode(s.toJson())).join('\n');
       await file.writeAsString(lines + (lines.isNotEmpty ? '\n' : ''));
     } catch (e) {
-      print('Failed to save skills: $e');
+      developer.log('Failed to save skills: $e');
     }
   }
 
   List<String> _extractKeywords(String text) {
-    final stopWords = {'to', 'and', 'the', 'a', 'in', 'of', 'for', 'on', 'with', 'at', 'by', 'from', 'go', 'turn', 'open'};
-    final words = text.toLowerCase().replaceAll(RegExp(r'[^a-z0-9\s]'), '').split(RegExp(r'\s+'));
+    final stopWords = {
+      'to',
+      'and',
+      'the',
+      'a',
+      'in',
+      'of',
+      'for',
+      'on',
+      'with',
+      'at',
+      'by',
+      'from',
+      'go',
+      'turn',
+      'open',
+    };
+    final words = text
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9\s]'), '')
+        .split(RegExp(r'\s+'));
     return words.where((w) => w.isNotEmpty && !stopWords.contains(w)).toList();
   }
 
@@ -80,7 +103,7 @@ class SkillMemoryService {
 
   Future<void> saveSkill(String taskGoal, List<ActionStep> steps) async {
     await _loadSkills();
-    
+
     final queryKeywords = _extractKeywords(taskGoal);
     for (final skill in _skills) {
       if (_jaccardSimilarity(queryKeywords, skill.taskKeywords) > 0.8) {

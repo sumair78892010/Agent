@@ -54,13 +54,15 @@ class MessageBubble extends StatelessWidget {
               : Border.all(
                   color: Theme.of(
                     context,
-                  ).colorScheme.onSurface.withOpacity(0.08),
+                  ).colorScheme.onSurface.withValues(alpha: 0.08),
                   width: 1.2,
                 ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(
-                Theme.of(context).brightness == Brightness.dark ? 0.15 : 0.02,
+              color: Colors.black.withValues(
+                alpha: Theme.of(context).brightness == Brightness.dark
+                    ? 0.15
+                    : 0.02,
               ),
               blurRadius: 8,
               offset: const Offset(0, 3),
@@ -82,7 +84,7 @@ class MessageBubble extends StatelessWidget {
                       shape: BoxShape.circle,
                       color: Theme.of(
                         context,
-                      ).colorScheme.primary.withOpacity(0.12),
+                      ).colorScheme.primary.withValues(alpha: 0.12),
                     ),
                     child: Image.asset(
                       'assets/app-logo.png',
@@ -113,13 +115,13 @@ class MessageBubble extends StatelessWidget {
                 margin: const EdgeInsets.only(bottom: 8),
                 decoration: BoxDecoration(
                   color: message.actionResult!.success
-                      ? Colors.green.withOpacity(0.12)
-                      : Colors.red.withOpacity(0.12),
+                      ? Colors.green.withValues(alpha: 0.12)
+                      : Colors.red.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
                     color: message.actionResult!.success
-                        ? Colors.green.withOpacity(0.3)
-                        : Colors.red.withOpacity(0.3),
+                        ? Colors.green.withValues(alpha: 0.3)
+                        : Colors.red.withValues(alpha: 0.3),
                     width: 1,
                   ),
                 ),
@@ -138,10 +140,9 @@ class MessageBubble extends StatelessWidget {
                     const SizedBox(width: 6),
                     Flexible(
                       child: Text(
-                        message.actionResult!.actionType.toUpperCase().replaceAll(
-                          '_',
-                          ' ',
-                        ),
+                        message.actionResult!.actionType
+                            .toUpperCase()
+                            .replaceAll('_', ' '),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(

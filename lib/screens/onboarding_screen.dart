@@ -457,7 +457,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   decoration: BoxDecoration(
                     color: active || complete
                         ? _accent(isDark)
-                        : _muted(isDark).withOpacity(.25),
+                        : _muted(isDark).withValues(alpha: 0.25),
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
@@ -845,9 +845,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               width: double.infinity,
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: Colors.red.withOpacity(.08),
+                color: Colors.red.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.red.withOpacity(.22)),
+                border: Border.all(color: Colors.red.withValues(alpha: 0.22)),
               ),
               child: Text(
                 _validationError!,
@@ -920,7 +920,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         style: FilledButton.styleFrom(
           backgroundColor: enabled
               ? (dark ? const Color(0xFFF7F3EE) : const Color(0xFF1C1917))
-              : const Color(0xFF8C857D).withOpacity(.35),
+              : const Color(0xFF8C857D).withValues(alpha: 0.35),
           foregroundColor: enabled
               ? (dark ? const Color(0xFF1C1917) : const Color(0xFFF7F3EE))
               : const Color(0xFF57534E),
@@ -1057,8 +1057,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       borderRadius: BorderRadius.circular(16),
       border: Border.all(
         color: granted
-            ? Colors.green.withOpacity(.45)
-            : _muted(isDark).withOpacity(.12),
+            ? Colors.green.withValues(alpha: 0.45)
+            : _muted(isDark).withValues(alpha: 0.12),
       ),
     ),
     child: Row(
@@ -1068,7 +1068,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           width: 40,
           height: 40,
           decoration: BoxDecoration(
-            color: _ink(isDark).withOpacity(.08),
+            color: _ink(isDark).withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Icon(icon, color: _ink(isDark), size: 21),
@@ -1109,7 +1109,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 onPressed: action,
                 style: OutlinedButton.styleFrom(
                   foregroundColor: _ink(isDark),
-                  side: BorderSide(color: _ink(isDark).withOpacity(.3)),
+                  side: BorderSide(color: _ink(isDark).withValues(alpha: 0.3)),
                   padding: const EdgeInsets.symmetric(horizontal: 11),
                   minimumSize: const Size(0, 34),
                   shape: RoundedRectangleBorder(
@@ -1139,10 +1139,14 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         width: 104,
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: selected ? _ink(isDark).withOpacity(.1) : _panel(isDark),
+          color: selected
+              ? _ink(isDark).withValues(alpha: 0.1)
+              : _panel(isDark),
           borderRadius: BorderRadius.circular(15),
           border: Border.all(
-            color: selected ? _ink(isDark) : _muted(isDark).withOpacity(.16),
+            color: selected
+                ? _ink(isDark)
+                : _muted(isDark).withValues(alpha: 0.16),
             width: selected ? 1.5 : 1,
           ),
         ),
@@ -1184,7 +1188,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       hintText: hint,
       labelStyle: TextStyle(color: _muted(isDark), fontSize: 13),
       hintStyle: TextStyle(
-        color: _muted(isDark).withOpacity(.65),
+        color: _muted(isDark).withValues(alpha: 0.65),
         fontSize: 13,
       ),
       suffixIcon: suffix,
@@ -1193,11 +1197,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide(color: _muted(isDark).withOpacity(.12)),
+        borderSide: BorderSide(color: _muted(isDark).withValues(alpha: 0.12)),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide(color: _muted(isDark).withOpacity(.12)),
+        borderSide: BorderSide(color: _muted(isDark).withValues(alpha: 0.12)),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),

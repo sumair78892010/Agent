@@ -27,10 +27,7 @@ class AlarmService {
   }
 
   /// Set a timer using Android's built-in timer intent
-  Future<String> setTimer({
-    required int seconds,
-    String? label,
-  }) async {
+  Future<String> setTimer({required int seconds, String? label}) async {
     try {
       final intent = AndroidIntent(
         action: 'android.intent.action.SET_TIMER',

@@ -18,7 +18,7 @@ class ProviderManager {
 
   late SharedPreferences _prefs;
   late SecureCredentialManager _credentialManager;
-  Map<String, AIProvider> _providers = {};
+  final Map<String, AIProvider> _providers = {};
   final Map<String, ProviderConfiguration> _configurations = {};
   String _activeProvider = 'custom';
 

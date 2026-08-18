@@ -157,7 +157,6 @@ class ScreenAutomationService {
       'turn',
       'open',
       'latest',
-      'for',
       'search',
       'about',
       'what',

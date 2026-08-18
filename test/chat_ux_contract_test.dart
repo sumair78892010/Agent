@@ -3,9 +3,9 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../lib/models/chat_message.dart';
-import '../lib/services/ai_service.dart';
-import '../lib/services/chat_history_service.dart';
+import 'package:agent_cypher/models/chat_message.dart';
+import 'package:agent_cypher/services/ai_service.dart';
+import 'package:agent_cypher/services/chat_history_service.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

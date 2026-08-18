@@ -25,8 +25,9 @@ class VerificationService {
     final deadline = DateTime.now().add(_appLaunchTimeout);
     while (DateTime.now().isBefore(deadline)) {
       try {
-        final currentPackage =
-            (await _screen.getCurrentPackage() ?? '').trim().toLowerCase();
+        final currentPackage = (await _screen.getCurrentPackage() ?? '')
+            .trim()
+            .toLowerCase();
         if (currentPackage == expectedPackage ||
             currentPackage.contains(expectedPackage)) {
           return true;
@@ -79,9 +80,9 @@ class VerificationService {
       }
 
       // A target disappearing is useful evidence that the click changed state.
-      return !screenDesc
-          .toLowerCase()
-          .contains(elementText.trim().toLowerCase());
+      return !screenDesc.toLowerCase().contains(
+        elementText.trim().toLowerCase(),
+      );
     } catch (_) {
       return false;
     }

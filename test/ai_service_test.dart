@@ -54,15 +54,18 @@ void main() {
     expect(screenState, contains('type=EditText'));
   });
 
-  test('recovery engine recommends human intervention for CAPTCHA blocks', () async {
-    final engine = RecoveryEngine();
-    final actions = await engine.diagnoseWithAlternatives(
-      'click_text',
-      'Verify you are human before continuing',
-      lastAttemptedValue: 'Google',
-    );
+  test(
+    'recovery engine recommends human intervention for CAPTCHA blocks',
+    () async {
+      final engine = RecoveryEngine();
+      final actions = await engine.diagnoseWithAlternatives(
+        'click_text',
+        'Verify you are human before continuing',
+        lastAttemptedValue: 'Google',
+      );
 
-    expect(actions, isNotEmpty);
-    expect(actions.first.action, 'wait_for_user');
-  });
+      expect(actions, isNotEmpty);
+      expect(actions.first.action, 'wait_for_user');
+    },
+  );
 }

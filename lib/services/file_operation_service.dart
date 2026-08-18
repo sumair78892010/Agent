@@ -310,7 +310,9 @@ class FileOperationService {
           modified: DateTime.now(),
         );
       }
-    } catch (e) {}
+    } catch (_) {
+      // File listing failed for this path
+    }
 
     return null;
   }

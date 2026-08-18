@@ -303,9 +303,7 @@ class SettingsService {
         'screen_reader': isScreenReaderEnabled(),
         'high_contrast': isHighContrastEnabled(),
       },
-      'developer': {
-        'mode': isDeveloperModeEnabled(),
-      },
+      'developer': {'mode': isDeveloperModeEnabled()},
     };
   }
 
@@ -324,57 +322,93 @@ class SettingsService {
   Future<void> importSettings(String jsonString) async {
     try {
       final settings = jsonDecode(jsonString) as Map<String, dynamic>;
-      
+
       // Import AI settings
       if (settings.containsKey('ai')) {
         final ai = settings['ai'] as Map<String, dynamic>;
-        if (ai.containsKey('provider')) await setAiProvider(ai['provider']);
-        if (ai.containsKey('model')) await setAiModel(ai['model']);
-        if (ai.containsKey('temperature')) await setAiTemperature(ai['temperature']);
-        if (ai.containsKey('max_tokens')) await setAiMaxTokens(ai['max_tokens']);
+        if (ai.containsKey('provider')) { await setAiProvider(ai['provider']); }
+        if (ai.containsKey('model')) { await setAiModel(ai['model']); }
+        if (ai.containsKey('temperature')) {
+          await setAiTemperature(ai['temperature']);
+        }
+        if (ai.containsKey('max_tokens')) {
+          await setAiMaxTokens(ai['max_tokens']);
+        }
       }
 
       // Import voice settings
       if (settings.containsKey('voice')) {
         final voice = settings['voice'] as Map<String, dynamic>;
-        if (voice.containsKey('enabled')) await setVoiceEnabled(voice['enabled']);
-        if (voice.containsKey('language')) await setVoiceLanguage(voice['language']);
-        if (voice.containsKey('speed')) await setVoiceSpeed(voice['speed']);
-        if (voice.containsKey('wake_word_enabled')) await setWakeWordEnabled(voice['wake_word_enabled']);
-        if (voice.containsKey('wake_word')) await setWakeWord(voice['wake_word']);
+        if (voice.containsKey('enabled')) {
+          await setVoiceEnabled(voice['enabled']);
+        }
+        if (voice.containsKey('language')) {
+          await setVoiceLanguage(voice['language']);
+        }
+        if (voice.containsKey('speed')) { await setVoiceSpeed(voice['speed']); }
+        if (voice.containsKey('wake_word_enabled')) {
+          await setWakeWordEnabled(voice['wake_word_enabled']);
+        }
+        if (voice.containsKey('wake_word')) {
+          await setWakeWord(voice['wake_word']);
+        }
       }
 
       // Import notification settings
       if (settings.containsKey('notifications')) {
         final notif = settings['notifications'] as Map<String, dynamic>;
-        if (notif.containsKey('enabled')) await setNotificationsEnabled(notif['enabled']);
-        if (notif.containsKey('sound')) await setNotificationSound(notif['sound']);
-        if (notif.containsKey('vibration')) await setNotificationVibration(notif['vibration']);
+        if (notif.containsKey('enabled')) {
+          await setNotificationsEnabled(notif['enabled']);
+        }
+        if (notif.containsKey('sound')) {
+          await setNotificationSound(notif['sound']);
+        }
+        if (notif.containsKey('vibration')) {
+          await setNotificationVibration(notif['vibration']);
+        }
       }
 
       // Import UI settings
       if (settings.containsKey('ui')) {
         final ui = settings['ui'] as Map<String, dynamic>;
-        if (ui.containsKey('theme')) await setThemeMode(ui['theme']);
-        if (ui.containsKey('bubble_size')) await setBubbleSize(ui['bubble_size'].toDouble());
-        if (ui.containsKey('compact_mode')) await setCompactMode(ui['compact_mode']);
+        if (ui.containsKey('theme')) { await setThemeMode(ui['theme']); }
+        if (ui.containsKey('bubble_size')) {
+          await setBubbleSize(ui['bubble_size'].toDouble());
+        }
+        if (ui.containsKey('compact_mode')) {
+          await setCompactMode(ui['compact_mode']);
+        }
       }
 
       // Import privacy settings
       if (settings.containsKey('privacy')) {
         final privacy = settings['privacy'] as Map<String, dynamic>;
-        if (privacy.containsKey('analytics')) await setAnalyticsEnabled(privacy['analytics']);
-        if (privacy.containsKey('crash_reports')) await setCrashReportsEnabled(privacy['crash_reports']);
-        if (privacy.containsKey('history_retention_days')) await setHistoryRetentionDays(privacy['history_retention_days']);
-        if (privacy.containsKey('logging')) await setLoggingEnabled(privacy['logging']);
+        if (privacy.containsKey('analytics')) {
+          await setAnalyticsEnabled(privacy['analytics']);
+        }
+        if (privacy.containsKey('crash_reports')) {
+          await setCrashReportsEnabled(privacy['crash_reports']);
+        }
+        if (privacy.containsKey('history_retention_days')) {
+          await setHistoryRetentionDays(privacy['history_retention_days']);
+        }
+        if (privacy.containsKey('logging')) {
+          await setLoggingEnabled(privacy['logging']);
+        }
       }
 
       // Import accessibility settings
       if (settings.containsKey('accessibility')) {
         final a11y = settings['accessibility'] as Map<String, dynamic>;
-        if (a11y.containsKey('font_size')) await setFontSize(a11y['font_size'].toDouble());
-        if (a11y.containsKey('screen_reader')) await setScreenReaderEnabled(a11y['screen_reader']);
-        if (a11y.containsKey('high_contrast')) await setHighContrastEnabled(a11y['high_contrast']);
+        if (a11y.containsKey('font_size')) {
+          await setFontSize(a11y['font_size'].toDouble());
+        }
+        if (a11y.containsKey('screen_reader')) {
+          await setScreenReaderEnabled(a11y['screen_reader']);
+        }
+        if (a11y.containsKey('high_contrast')) {
+          await setHighContrastEnabled(a11y['high_contrast']);
+        }
       }
     } catch (e) {
       // Import failed, keep existing settings

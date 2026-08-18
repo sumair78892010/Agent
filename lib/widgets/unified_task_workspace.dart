@@ -91,7 +91,7 @@ class UnifiedTaskWorkspace extends StatelessWidget {
                     style: const TextStyle(fontSize: 12, height: 1.35),
                   ),
                 ),
-                ButtonBar(
+                OverflowBar(
                   alignment: MainAxisAlignment.start,
                   children: [
                     TextButton.icon(

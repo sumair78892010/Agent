@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../lib/models/chat_message.dart';
-import '../lib/services/attachment_service.dart';
-import '../lib/widgets/data_summary_card.dart';
+import 'package:agent_cypher/models/chat_message.dart';
+import 'package:agent_cypher/services/attachment_service.dart';
+import 'package:agent_cypher/widgets/data_summary_card.dart';
 
 void main() {
   const summary = AttachmentDataSummary(

@@ -1,14 +1,11 @@
 import 'dart:async';
 
 import 'package:permission_handler/permission_handler.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'screen_automation_service.dart';
 
 /// Centralized permission status handling
 /// Per spec section 26: Permission center with status and remediation
 class PermissionService {
-  static const String _permissionsPrefsKey = 'permissions_state';
-
   /// Check if microphone permission is granted
   Future<PermissionStatus> checkMicrophone() async {
     return await Permission.microphone.status;

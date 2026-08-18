@@ -1490,10 +1490,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     vertical: 10,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.orangeAccent.withOpacity(0.15),
+                    color: Colors.orangeAccent.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: Colors.orangeAccent.withOpacity(0.3),
+                      color: Colors.orangeAccent.withValues(alpha: 0.3),
                     ),
                   ),
                   child: Row(
@@ -1638,7 +1638,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   BoxShadow(
                     color: Theme.of(
                       context,
-                    ).colorScheme.primary.withOpacity(0.2),
+                    ).colorScheme.primary.withValues(alpha: 0.2),
                     blurRadius: 8,
                     offset: const Offset(0, 3),
                   ),
@@ -1662,7 +1662,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           color: Colors.white,
                           size: 16,
                         ),
-                        const SizedBox(width: 8),
+                        SizedBox(width: 8),
                         Text(
                           'New Chat',
                           style: TextStyle(
@@ -1794,14 +1794,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         color: isCurrent
                             ? Theme.of(
                                 context,
-                              ).colorScheme.primary.withOpacity(0.08)
+                              ).colorScheme.primary.withValues(alpha: 0.08)
                             : Colors.transparent,
                         borderRadius: BorderRadius.circular(12),
                         border: isCurrent
                             ? Border.all(
                                 color: Theme.of(
                                   context,
-                                ).colorScheme.primary.withOpacity(0.15),
+                                ).colorScheme.primary.withValues(alpha: 0.15),
                               )
                             : null,
                       ),
@@ -1840,10 +1840,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             color: isDark ? Colors.grey[500] : Colors.grey[600],
                           ),
                           onSelected: (value) async {
-                            if (value == 'rename')
+                            if (value == 'rename') {
                               await _renameSession(session);
-                            if (value == 'delete')
+                            }
+                            if (value == 'delete') {
                               await _deleteSession(session);
+                            }
                           },
                           itemBuilder: (_) => const [
                             PopupMenuItem(
@@ -1931,11 +1933,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 gradient: RadialGradient(
                   colors: [
                     isDark
-                        ? const Color(0xFF6366F1).withOpacity(0.24)
-                        : const Color(0xFF4F46E5).withOpacity(0.12),
+                        ? const Color(0xFF6366F1).withValues(alpha: 0.24)
+                        : const Color(0xFF4F46E5).withValues(alpha: 0.12),
                     isDark
-                        ? const Color(0xFF6366F1).withOpacity(0)
-                        : const Color(0xFF4F46E5).withOpacity(0),
+                        ? const Color(0xFF6366F1).withValues(alpha: 0.0)
+                        : const Color(0xFF4F46E5).withValues(alpha: 0.0),
                   ],
                 ),
               ),
@@ -1952,11 +1954,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 gradient: RadialGradient(
                   colors: [
                     isDark
-                        ? const Color(0xFF38BDF8).withOpacity(0.18)
-                        : const Color(0xFF0EA5E9).withOpacity(0.09),
+                        ? const Color(0xFF38BDF8).withValues(alpha: 0.18)
+                        : const Color(0xFF0EA5E9).withValues(alpha: 0.09),
                     isDark
-                        ? const Color(0xFF38BDF8).withOpacity(0)
-                        : const Color(0xFF0EA5E9).withOpacity(0),
+                        ? const Color(0xFF38BDF8).withValues(alpha: 0.0)
+                        : const Color(0xFF0EA5E9).withValues(alpha: 0.0),
                   ],
                 ),
               ),
@@ -1978,7 +1980,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           color: activeBg,
           borderRadius: BorderRadius.circular(30),
           border: Border.all(
-            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.06),
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.06),
           ),
         ),
         child: Row(
@@ -2029,7 +2031,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   BoxShadow(
                     color: Theme.of(
                       context,
-                    ).colorScheme.primary.withOpacity(0.20),
+                    ).colorScheme.primary.withValues(alpha: 0.2),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),
@@ -2172,15 +2174,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
                             color: isDark
-                                ? const Color(0xFF243049).withOpacity(0.4)
+                                ? const Color(0xFF243049).withValues(alpha: 0.4)
                                 : const Color(0xFFE2E8F0),
                             width: 1.2,
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(
-                                isDark ? 0.1 : 0.02,
-                              ),
+                              color: Colors.black.withValues(alpha: isDark ? 0.1 : 0.02,),
                               blurRadius: 8,
                               offset: const Offset(0, 3),
                             ),
@@ -2397,8 +2397,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         : snapshot.diagnosisFinalResult,
                   ),
                 ],
-                if (snapshot.errors.isNotEmpty)
+                if (snapshot.errors.isNotEmpty) {
                   detailRow('Recent error', snapshot.errors.last),
+                }
                 const SizedBox(height: 6),
                 Text(
                   'Open Developer Mode for Terminal/Workspace, artifacts, and full telemetry.',
@@ -2412,159 +2413,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
         );
       },
-    );
-  }
-
-  Widget _buildVoiceControlPanel(bool isDark) {
-    final scheme = Theme.of(context).colorScheme;
-    final wakeActive = _wakeWordEnabled && _wakeWordListening;
-    final active =
-        _isListening || _isSpeaking || _isVoiceProcessing || wakeActive;
-    final stateColor = _isListening
-        ? Colors.redAccent
-        : _isSpeaking
-        ? Colors.indigoAccent
-        : _isVoiceProcessing
-        ? Colors.amber.shade700
-        : wakeActive
-        ? Colors.tealAccent.shade700
-        : scheme.primary;
-    final stateLabel = _isListening
-        ? 'LISTENING'
-        : _isSpeaking
-        ? 'SPEAKING'
-        : _isVoiceProcessing
-        ? 'PROCESSING'
-        : wakeActive
-        ? 'WAKE LISTENING'
-        : 'VOICE READINESS';
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: scheme.surfaceContainerHighest.withOpacity(
-            isDark ? 0.42 : 0.72,
-          ),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: active
-                ? stateColor.withOpacity(0.55)
-                : scheme.outlineVariant,
-          ),
-        ),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 220),
-                  width: 10,
-                  height: 10,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: stateColor,
-                    boxShadow: active
-                        ? [
-                            BoxShadow(
-                              color: stateColor.withOpacity(0.45),
-                              blurRadius: 8,
-                            ),
-                          ]
-                        : null,
-                  ),
-                ),
-                const SizedBox(width: 9),
-                Expanded(
-                  child: Text(
-                    stateLabel,
-                    style: TextStyle(
-                      color: stateColor,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 1.1,
-                    ),
-                  ),
-                ),
-                if (_isListening)
-                  TextButton.icon(
-                    onPressed: _toggleVoice,
-                    icon: const Icon(Icons.stop_rounded, size: 16),
-                    label: const Text('Stop listening'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: Colors.redAccent,
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                  ),
-                if (_isSpeaking)
-                  TextButton.icon(
-                    onPressed: _stopSpeaking,
-                    icon: const Icon(Icons.volume_off_rounded, size: 16),
-                    label: const Text('Interrupt'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: Colors.indigoAccent,
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                _partialTranscript.trim().isNotEmpty
-                    ? _partialTranscript
-                    : _voiceStatus,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 6,
-              runSpacing: 4,
-              children: [
-                _buildVoiceReadinessChip(
-                  label: 'PERMISSION',
-                  ready: _microphonePermissionGranted,
-                ),
-                _buildVoiceReadinessChip(
-                  label: 'RECOGNITION',
-                  ready: _speechRecognitionAvailable,
-                ),
-                _buildVoiceReadinessChip(label: 'TTS', ready: _ttsAvailable),
-                const Chip(
-                  avatar: Icon(Icons.wifi_tethering_off_rounded, size: 14),
-                  label: Text('WAKE WORD UNAVAILABLE'),
-                  visualDensity: VisualDensity.compact,
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildVoiceReadinessChip({
-    required String label,
-    required bool ready,
-  }) {
-    return Chip(
-      avatar: Icon(
-        ready ? Icons.check_circle_rounded : Icons.error_outline_rounded,
-        size: 14,
-        color: ready ? Colors.green : Colors.orange,
-      ),
-      label: Text('$label ${ready ? 'READY' : 'UNAVAILABLE'}'),
-      visualDensity: VisualDensity.compact,
     );
   }
 
@@ -2633,24 +2481,24 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         ? Colors.indigoAccent
                         : Theme.of(
                             context,
-                          ).colorScheme.onSurface.withOpacity(0.08),
+                          ).colorScheme.onSurface.withValues(alpha: 0.08),
                     width: 1.2,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(isDark ? 0.2 : 0.03),
+                      color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
                       blurRadius: 8,
                       offset: const Offset(0, 4),
                     ),
                     if (_isListening)
                       BoxShadow(
-                        color: Colors.redAccent.withOpacity(0.4),
+                        color: Colors.redAccent.withValues(alpha: 0.4),
                         blurRadius: 12,
                         spreadRadius: 2,
                       ),
                     if (_isSpeaking)
                       BoxShadow(
-                        color: Colors.indigoAccent.withOpacity(0.4),
+                        color: Colors.indigoAccent.withValues(alpha: 0.4),
                         blurRadius: 12,
                         spreadRadius: 2,
                       ),
@@ -2692,12 +2540,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     border: Border.all(
                       color: Theme.of(
                         context,
-                      ).colorScheme.onSurface.withOpacity(0.08),
+                      ).colorScheme.onSurface.withValues(alpha: 0.08),
                       width: 1.2,
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(isDark ? 0.2 : 0.03),
+                        color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
                         blurRadius: 8,
                         offset: const Offset(0, 4),
                       ),

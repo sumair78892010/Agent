@@ -3,8 +3,8 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../lib/models/chat_message.dart';
-import '../lib/services/attachment_service.dart';
+import 'package:agent_cypher/models/chat_message.dart';
+import 'package:agent_cypher/services/attachment_service.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -73,51 +73,59 @@ void main() {
     },
   );
 
-  test('CSV inspection returns bounded structure and numeric summaries', () async {
-    final file = File('${Directory.systemTemp.path}/cypher-data-test.csv');
-    await file.writeAsString('name,amount\nA,10\nB,20\nC,30\n');
-    addTearDown(() async {
-      if (await file.exists()) await file.delete();
-    });
+  test(
+    'CSV inspection returns bounded structure and numeric summaries',
+    () async {
+      final file = File('${Directory.systemTemp.path}/cypher-data-test.csv');
+      await file.writeAsString('name,amount\nA,10\nB,20\nC,30\n');
+      addTearDown(() async {
+        if (await file.exists()) await file.delete();
+      });
 
-    final attachment = AttachmentReference(
-      id: 'csv-1',
-      name: 'data.csv',
-      path: file.path,
-      mimeType: 'text/csv',
-      size: await file.length(),
-      selectedAt: DateTime.utc(2026, 8, 16),
-    );
-    final inspection = await AttachmentService().inspect(attachment);
+      final attachment = AttachmentReference(
+        id: 'csv-1',
+        name: 'data.csv',
+        path: file.path,
+        mimeType: 'text/csv',
+        size: await file.length(),
+        selectedAt: DateTime.utc(2026, 8, 16),
+      );
+      final inspection = await AttachmentService().inspect(attachment);
 
-    expect(inspection.dataSummary?.format, 'CSV');
-    expect(inspection.dataSummary?.rowCount, 3);
-    expect(inspection.dataSummary?.columns, containsAll(['name', 'amount']));
-    expect(inspection.dataSummary?.numericColumns['amount']?.average, 20);
-    expect(inspection.summary, contains('3 rows'));
-  });
+      expect(inspection.dataSummary?.format, 'CSV');
+      expect(inspection.dataSummary?.rowCount, 3);
+      expect(inspection.dataSummary?.columns, containsAll(['name', 'amount']));
+      expect(inspection.dataSummary?.numericColumns['amount']?.average, 20);
+      expect(inspection.summary, contains('3 rows'));
+    },
+  );
 
-  test('JSON inspection summarizes object collections without exposing secrets', () async {
-    final file = File('${Directory.systemTemp.path}/cypher-data-test.json');
-    await file.writeAsString('[{"label":"A","score":2},{"label":"B","score":4}]');
-    addTearDown(() async {
-      if (await file.exists()) await file.delete();
-    });
+  test(
+    'JSON inspection summarizes object collections without exposing secrets',
+    () async {
+      final file = File('${Directory.systemTemp.path}/cypher-data-test.json');
+      await file.writeAsString(
+        '[{"label":"A","score":2},{"label":"B","score":4}]',
+      );
+      addTearDown(() async {
+        if (await file.exists()) await file.delete();
+      });
 
-    final attachment = AttachmentReference(
-      id: 'json-1',
-      name: 'data.json',
-      path: file.path,
-      mimeType: 'application/json',
-      size: await file.length(),
-      selectedAt: DateTime.utc(2026, 8, 16),
-    );
-    final inspection = await AttachmentService().inspect(attachment);
+      final attachment = AttachmentReference(
+        id: 'json-1',
+        name: 'data.json',
+        path: file.path,
+        mimeType: 'application/json',
+        size: await file.length(),
+        selectedAt: DateTime.utc(2026, 8, 16),
+      );
+      final inspection = await AttachmentService().inspect(attachment);
 
-    expect(inspection.dataSummary?.format, 'JSON');
-    expect(inspection.dataSummary?.rowCount, 2);
-    expect(inspection.dataSummary?.numericColumns['score']?.maximum, 4);
-  });
+      expect(inspection.dataSummary?.format, 'JSON');
+      expect(inspection.dataSummary?.rowCount, 2);
+      expect(inspection.dataSummary?.numericColumns['score']?.maximum, 4);
+    },
+  );
 
   test('ChatMessage preserves attachment metadata across JSON round trips', () {
     final message = ChatMessage(

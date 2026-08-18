@@ -1,3 +1,4 @@
+import 'dart:developer' as developer;
 import 'dart:convert';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
@@ -9,10 +10,16 @@ class TaskHistoryLogger {
   }
 
   /// Appends a task execution record to the history file
-  static Future<void> logTask(String goal, String status, int totalTokens, int steps, List<String> trace) async {
+  static Future<void> logTask(
+    String goal,
+    String status,
+    int totalTokens,
+    int steps,
+    List<String> trace,
+  ) async {
     try {
       final file = await _localFile;
-      
+
       final data = {
         "goal": goal.trim(),
         "status": status, // "Success", "Failed", "Cancelled"
@@ -21,10 +28,10 @@ class TaskHistoryLogger {
         "trace": trace,
         "timestamp": DateTime.now().toIso8601String(),
       };
-      
+
       await file.writeAsString('${jsonEncode(data)}\n', mode: FileMode.append);
     } catch (e) {
-      print('Failed to write task history: $e');
+      developer.log('Failed to write task history: $e');
     }
   }
 
@@ -42,7 +49,7 @@ class TaskHistoryLogger {
           .reversed
           .toList(); // newest first
     } catch (e) {
-      print('Failed to read task history: $e');
+      developer.log('Failed to read task history: $e');
       return [];
     }
   }
@@ -55,7 +62,7 @@ class TaskHistoryLogger {
         await file.delete();
       }
     } catch (e) {
-      print('Failed to clear task history: $e');
+      developer.log('Failed to clear task history: $e');
     }
   }
 

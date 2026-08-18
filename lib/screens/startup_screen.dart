@@ -38,11 +38,11 @@ class _StartupScreenState extends State<StartupScreen>
     if (!mounted) return;
     Navigator.of(context).pushReplacement(
       PageRouteBuilder<void>(
-        pageBuilder: (_, __, ___) => widget.onboardingCompleted
+        pageBuilder: (_, _, _) => widget.onboardingCompleted
             ? const HomeScreen()
             : const OnboardingScreen(),
         transitionDuration: const Duration(milliseconds: 420),
-        transitionsBuilder: (_, animation, __, child) => FadeTransition(
+        transitionsBuilder: (_, animation, _, child) => FadeTransition(
           opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
           child: child,
         ),
@@ -93,13 +93,13 @@ class _StartupScreenState extends State<StartupScreen>
                         border: Border.all(
                           color: Theme.of(
                             context,
-                          ).colorScheme.primary.withOpacity(0.28),
+                          ).colorScheme.primary.withValues(alpha: 0.28),
                         ),
                         boxShadow: [
                           BoxShadow(
                             color: Theme.of(
                               context,
-                            ).colorScheme.primary.withOpacity(0.18),
+                            ).colorScheme.primary.withValues(alpha: 0.18),
                             blurRadius: 32,
                             spreadRadius: 6,
                           ),
@@ -125,7 +125,7 @@ class _StartupScreenState extends State<StartupScreen>
                     Text(
                       'by Sumair',
                       style: TextStyle(
-                        color: foreground.withOpacity(0.62),
+                        color: foreground.withValues(alpha: 0.62),
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                         letterSpacing: 1.1,
@@ -137,7 +137,7 @@ class _StartupScreenState extends State<StartupScreen>
                       child: LinearProgressIndicator(
                         minHeight: 3,
                         borderRadius: BorderRadius.circular(8),
-                        backgroundColor: foreground.withOpacity(0.12),
+                        backgroundColor: foreground.withValues(alpha: 0.12),
                         color: Theme.of(context).colorScheme.primary,
                       ),
                     ),
@@ -154,7 +154,7 @@ class _StartupScreenState extends State<StartupScreen>
               'Preparing your workspace',
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: foreground.withOpacity(0.48),
+                color: foreground.withValues(alpha: 0.48),
                 fontSize: 11,
                 letterSpacing: 0.4,
               ),
@@ -180,12 +180,12 @@ class _StartupGlow extends StatelessWidget {
           Positioned(
             top: -120,
             right: -100,
-            child: _glow(color.withOpacity(isDark ? 0.2 : 0.1), 330),
+            child: _glow(color.withValues(alpha: isDark ? 0.2 : 0.1), 330),
           ),
           Positioned(
             bottom: -160,
             left: -120,
-            child: _glow(color.withOpacity(isDark ? 0.13 : 0.06), 360),
+            child: _glow(color.withValues(alpha: isDark ? 0.13 : 0.06), 360),
           ),
         ],
       ),
@@ -198,7 +198,7 @@ class _StartupGlow extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        gradient: RadialGradient(colors: [color, color.withOpacity(0)]),
+        gradient: RadialGradient(colors: [color, color.withValues(alpha: 0.0)]),
       ),
     );
   }

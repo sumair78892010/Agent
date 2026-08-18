@@ -12,7 +12,8 @@ class WebOperationService {
     'bing': 'https://www.bing.com/search?q=',
     'duckduckgo': 'https://duckduckgo.com/?q=',
     'youtube': 'https://www.youtube.com/results?search_query=',
-    'wikipedia': 'https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=',
+    'wikipedia':
+        'https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=',
   };
 
   /// Search using specified search engine
@@ -41,7 +42,8 @@ class WebOperationService {
   Future<bool> youtubeSearch(String query) => search(query, engine: 'youtube');
 
   /// Search on Wikipedia
-  Future<bool> wikipediaSearch(String query) => search(query, engine: 'wikipedia');
+  Future<bool> wikipediaSearch(String query) =>
+      search(query, engine: 'wikipedia');
 
   /// Open URL in browser
   Future<bool> openUrl(String url) async {
@@ -66,15 +68,15 @@ class WebOperationService {
   Future<String?> getCurrentUrl() async {
     try {
       final screenDesc = await _screenService.getScreenDescription();
-      
+
       // Look for URL patterns in screen content
       final urlPattern = RegExp(r'https?://[^\s]+');
       final match = urlPattern.firstMatch(screenDesc);
-      
+
       if (match != null) {
         return match.group(0);
       }
-      
+
       return null;
     } catch (e) {
       return null;
@@ -182,7 +184,7 @@ class WebOperationService {
     try {
       final content = await getPageContent();
       final urlPattern = RegExp(r'https?://[^\s\)]+');
-      
+
       return urlPattern
           .allMatches(content)
           .map((m) => m.group(0) ?? '')
@@ -197,13 +199,13 @@ class WebOperationService {
   Future<String> getAllText() async {
     try {
       final content = await getPageContent();
-      
+
       // Remove URLs and other noise
       final text = content
           .replaceAll(RegExp(r'https?://[^\s]+'), '')
           .replaceAll(RegExp(r'\[.*?\]'), '')
           .trim();
-      
+
       return text;
     } catch (e) {
       return '';
@@ -212,21 +214,23 @@ class WebOperationService {
 
   /// Wait for element to appear on page
   /// Useful for pages with dynamic content
-  Future<bool> waitForElement(String elementText,
-      {Duration timeout = const Duration(seconds: 10)}) async {
+  Future<bool> waitForElement(
+    String elementText, {
+    Duration timeout = const Duration(seconds: 10),
+  }) async {
     try {
       final startTime = DateTime.now();
-      
+
       while (DateTime.now().difference(startTime) < timeout) {
         final content = await getPageContent();
         if (content.contains(elementText)) {
           return true;
         }
-        
+
         // Wait a bit before checking again
         await Future.delayed(const Duration(seconds: 1));
       }
-      
+
       return false;
     } catch (e) {
       return false;
@@ -235,14 +239,17 @@ class WebOperationService {
 
   /// Common web operations
   /// Search for something and open first result
-  Future<bool> searchAndOpenFirst(String query, {String engine = 'google'}) async {
+  Future<bool> searchAndOpenFirst(
+    String query, {
+    String engine = 'google',
+  }) async {
     try {
       // First, do the search
       if (!await search(query, engine: engine)) return false;
-      
+
       // Wait for results to load
       await Future.delayed(const Duration(seconds: 2));
-      
+
       // Click first result
       return await clickElement('h2') || await clickElement('a');
     } catch (e) {

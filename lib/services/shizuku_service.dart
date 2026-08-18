@@ -61,9 +61,7 @@ class ShizukuService {
 
   /// Toggle Bluetooth via Shizuku
   Future<String> toggleBluetooth(bool enable) async {
-    return runCommand(
-      'cmd bluetooth_manager ${enable ? 'enable' : 'disable'}',
-    );
+    return runCommand('cmd bluetooth_manager ${enable ? 'enable' : 'disable'}');
   }
 
   /// Force stop an app

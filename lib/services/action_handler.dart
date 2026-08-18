@@ -49,7 +49,8 @@ class ActionHandler {
             return AgentActionResult(
               actionType: action.action,
               success: false,
-              details: 'Could not find app "$appName". Try being more specific.',
+              details:
+                  'Could not find app "$appName". Try being more specific.',
             );
           }
           result = await _appLauncher.openPackage(target.packageName);
@@ -193,7 +194,8 @@ class ActionHandler {
           final afterScreen = scrollSuccess
               ? await _screenAutomation.getScreenDescription()
               : '';
-          final verified = scrollSuccess &&
+          final verified =
+              scrollSuccess &&
               beforeScreen.trim() != afterScreen.trim() &&
               afterScreen.isNotEmpty &&
               !afterScreen.contains('Could not read screen');
@@ -240,7 +242,9 @@ class ActionHandler {
             action.params['path'] as String? ?? '',
             action.params['content'] as String? ?? '',
           );
-          result = success ? 'File written successfully' : 'Could not write file';
+          result = success
+              ? 'File written successfully'
+              : 'Could not write file';
           break;
 
         case 'list_directory':
@@ -298,7 +302,9 @@ class ActionHandler {
             action.params['query'] as String? ?? '',
             engine: engine,
           );
-          result = success ? 'Search opened in browser' : 'Could not open search';
+          result = success
+              ? 'Search opened in browser'
+              : 'Could not open search';
           break;
 
         case 'open_url':

@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 
-import '../lib/services/research_report_service.dart';
-import '../lib/services/web_research_service.dart';
+import 'package:agent_cypher/services/research_report_service.dart';
+import 'package:agent_cypher/services/web_research_service.dart';
 
 class _ResearchClient extends http.BaseClient {
   final int statusCode;
