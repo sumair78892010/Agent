@@ -9,6 +9,7 @@ import 'task_history_logger.dart';
 import 'shizuku_service.dart';
 import 'skill_memory_service.dart';
 import 'recovery_engine.dart';
+import 'verification_service.dart';
 import 'task_telemetry_service.dart';
 import '../models/saved_skill.dart';
 
@@ -32,6 +33,7 @@ class TaskExecutor {
   final NotificationService _notificationService = NotificationService();
   final SkillMemoryService _skillMemory = SkillMemoryService();
   final RecoveryEngine _recoveryEngine = RecoveryEngine();
+  final VerificationService _verificationService = VerificationService();
 
   /// Callback to report progress messages to the UI
   final void Function(String message)? onProgress;
@@ -578,7 +580,22 @@ Step ${step + 1}/${_aiService.maxSteps}. Look at the text dump and coordinates. 
         case 'open_app':
           final appName = params['app_name'] as String? ?? '';
           actionResult = await _appLauncher.openApp(appName);
-          success = actionResult.startsWith('Opened');
+          // Verify by checking the actual foreground package, not the
+          // launcher API's return string.
+          if (actionResult.startsWith('Opened')) {
+            final pkg = actionResult.replaceFirst('Opened ', '').trim();
+            final verified = await _verificationService.verifyAppOpened(
+              null,
+              pkg,
+            );
+            success = verified;
+            if (!verified) {
+              actionResult =
+                  'App launch command sent but "$pkg" is not in the foreground';
+            }
+          } else {
+            success = false;
+          }
           break;
 
         case 'wait':
@@ -905,15 +922,6 @@ Step ${step + 1}/${_aiService.maxSteps}. Look at the text dump and coordinates. 
     // Generic completion still requires non-trivial observable screen state.
     return visible.trim().length >= 20;
   }
-
-  /// Verifies model-declared completion against observable device state.
-  /// A successful native call or `is_complete=true` is never sufficient alone.
-
-  /// Verifies model-declared completion against observable device state.
-  /// A successful native call or `is_complete=true` is never sufficient alone.
-
-  /// Verifies model-declared completion against observable device state.
-  /// A successful native call or `is_complete=true` is never sufficient alone.
 
   void _report(String message) {
     final lower = message.toLowerCase();

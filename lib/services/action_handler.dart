@@ -120,17 +120,30 @@ class ActionHandler {
           break;
 
         case 'set_volume':
-          result = await _systemControl.setVolume(
-            (action.params['level'] as num?)?.toInt() ?? 50,
-          );
+          final volumeLevel = (action.params['level'] as num?)?.toInt() ?? 50;
+          result = await _systemControl.setVolume(volumeLevel);
           success = !result.startsWith('Error');
+          if (success) {
+            success = await _verification.verifyVolumeSet(volumeLevel);
+            if (!success) {
+              result =
+                  'Volume command sent but could not confirm the level changed';
+            }
+          }
           break;
 
         case 'set_brightness':
-          result = await _systemControl.setBrightness(
-            (action.params['level'] as num?)?.toInt() ?? 50,
-          );
+          final brightnessLevel =
+              (action.params['level'] as num?)?.toInt() ?? 50;
+          result = await _systemControl.setBrightness(brightnessLevel);
           success = !result.startsWith('Error');
+          if (success) {
+            success = await _verification.verifyBrightnessSet(brightnessLevel);
+            if (!success) {
+              result =
+                  'Brightness command sent but could not confirm the level changed';
+            }
+          }
           break;
 
         case 'run_adb_command':
@@ -173,6 +186,7 @@ class ActionHandler {
         case 'type_on_screen':
           final text = action.params['text'] as String? ?? '';
           final hint = action.params['field_hint'] as String?;
+          final beforeType = await _verification.captureScreenSnapshot();
           final typeSuccess = await _screenAutomation.typeText(
             text,
             fieldHint: hint,
@@ -180,35 +194,49 @@ class ActionHandler {
           final verified = await _verification.verifyTextTyped(
             text,
             fieldHint: hint,
+            beforeScreen: beforeType,
           );
           success = typeSuccess && verified;
           result = success
-              ? 'Typed "$text"'
-              : 'Could not type "$text" or verification failed';
+              ? 'Typed "$text" and verified text appears on screen'
+              : 'Could not type "$text" or text not found on screen';
           break;
 
         case 'scroll_screen':
-          final beforeScreen = await _screenAutomation.getScreenDescription();
+          final beforeScreen = await _verification.captureScreenSnapshot();
           final direction = action.params['direction'] as String? ?? 'down';
           final scrollSuccess = await _screenAutomation.scroll(direction);
-          final afterScreen = scrollSuccess
-              ? await _screenAutomation.getScreenDescription()
-              : '';
-          final verified =
-              scrollSuccess &&
-              beforeScreen.trim() != afterScreen.trim() &&
-              afterScreen.isNotEmpty &&
-              !afterScreen.contains('Could not read screen');
+          String afterScreen = '';
+          if (scrollSuccess) {
+            await Future.delayed(const Duration(milliseconds: 300));
+            afterScreen = await _verification.captureScreenSnapshot();
+          }
+          final verified = await _verification.verifyScroll(
+            beforeScreen,
+            afterScreen,
+          );
           success = scrollSuccess && verified;
           result = success
-              ? 'Scrolled $direction and verified a screen-state change'
+              ? 'Scrolled $direction and verified content changed'
               : 'Could not verify scroll $direction';
           break;
 
         case 'press_back':
+          final beforeBack = await _verification.captureScreenSnapshot();
           final backSuccess = await _screenAutomation.pressBack();
-          success = backSuccess;
-          result = success ? 'Pressed back' : 'Could not press back';
+          if (backSuccess) {
+            await Future.delayed(const Duration(milliseconds: 300));
+            final afterBack = await _verification.captureScreenSnapshot();
+            // Verify screen actually changed after pressing back.
+            success =
+                beforeBack.trim() != afterBack.trim() &&
+                !afterBack.contains('Could not read screen');
+          } else {
+            success = false;
+          }
+          result = success
+              ? 'Pressed back and verified navigation'
+              : 'Could not verify back navigation';
           break;
 
         case 'execute_task':
@@ -298,20 +326,37 @@ class ActionHandler {
 
         case 'search':
           final engine = action.params['engine'] as String? ?? 'google';
-          success = await _webOps.search(
-            action.params['query'] as String? ?? '',
-            engine: engine,
-          );
-          result = success
-              ? 'Search opened in browser'
-              : 'Could not open search';
+          final searchQuery = action.params['query'] as String? ?? '';
+          success = await _webOps.search(searchQuery, engine: engine);
+          if (success) {
+            success = await _verification.verifySearchResults(searchQuery);
+            if (!success) {
+              result = 'Search launched but could not confirm results loaded';
+            } else {
+              result = 'Searched for "$searchQuery" and verified results';
+            }
+          } else {
+            result = 'Could not open search';
+          }
           break;
 
         case 'open_url':
-          success = await _webOps.openUrl(
-            action.params['url'] as String? ?? '',
-          );
-          result = success ? 'URL opened in browser' : 'Could not open URL';
+          final url = action.params['url'] as String? ?? '';
+          success = await _webOps.openUrl(url);
+          if (success) {
+            // Wait briefly for the browser/page to load, then verify
+            // something meaningful is on screen.
+            await Future.delayed(const Duration(seconds: 2));
+            final pageContent = await _verification.captureScreenSnapshot();
+            success =
+                !pageContent.contains('Could not read screen') &&
+                pageContent.trim().length > 30;
+            result = success
+                ? 'Opened "$url" and verified page loaded'
+                : 'URL was launched but page content could not be confirmed';
+          } else {
+            result = 'Could not open URL';
+          }
           break;
 
         case 'get_page_content':

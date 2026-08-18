@@ -95,11 +95,12 @@ class WebOperationService {
   }
 
   /// Refresh current page
+  /// Uses Android's system-wide refresh gesture (pull-down from top)
+  /// instead of pressing Enter, which is not a refresh action.
   Future<bool> refreshPage() async {
     try {
-      // On Android, we can press the refresh button if visible
-      // Otherwise, we can use F5 key equivalent
-      return await _screenService.pressEnter();
+      // Swipe down from the top edge of the screen to trigger a refresh.
+      return await _screenService.swipe(540, 200, 540, 800);
     } catch (e) {
       return false;
     }
@@ -237,21 +238,71 @@ class WebOperationService {
     }
   }
 
-  /// Common web operations
-  /// Search for something and open first result
+  /// Search for something and open the first relevant result.
+  /// Uses semantic text matching on the accessibility tree rather than
+  /// generic HTML selectors (h2, a) which do not apply to Android's
+  /// accessibility node tree.
   Future<bool> searchAndOpenFirst(
     String query, {
     String engine = 'google',
   }) async {
     try {
-      // First, do the search
       if (!await search(query, engine: engine)) return false;
 
-      // Wait for results to load
-      await Future.delayed(const Duration(seconds: 2));
+      // Wait for results to load.
+      await Future.delayed(const Duration(seconds: 3));
 
-      // Click first result
-      return await clickElement('h2') || await clickElement('a');
+      // Read the screen and look for meaningful result-like text.
+      final screenContent = await _screenService.getScreenDescription();
+      if (screenContent.contains('Could not read screen')) return false;
+
+      // Strategy: look for lines that contain query terms and are not
+      // the search bar, URL bar, or navigation elements.
+      final lines = screenContent
+          .split('\n')
+          .where((line) => line.trim().length > 10)
+          .toList();
+
+      // Extract meaningful query terms.
+      final queryTerms = query
+          .toLowerCase()
+          .split(RegExp(r'\s+'))
+          .where((w) => w.length >= 3)
+          .toList();
+
+      // Find the first line that matches a query term and looks like a
+      // result title (not a URL, not a navigation element).
+      for (final line in lines) {
+        final lowered = line.toLowerCase();
+        final hasQueryTerm = queryTerms.any(lowered.contains);
+        final looksLikeUrl =
+            lowered.startsWith('http') ||
+            lowered.contains('google.com') ||
+            lowered.contains('bing.com');
+        if (hasQueryTerm && !looksLikeUrl) {
+          // Try clicking the first meaningful portion of the line.
+          final clickableText = line.trim().split(RegExp(r'\s{2,}')).first;
+          if (clickableText.length >= 5) {
+            return await clickElement(clickableText);
+          }
+        }
+      }
+
+      // Fallback: try the first non-URL line that isn't the search bar.
+      for (final line in lines) {
+        final lowered = line.toLowerCase();
+        final looksLikeUrl = lowered.startsWith('http');
+        final looksLikeSearchBar =
+            lowered.contains('search') && lowered.length < 60;
+        if (!looksLikeUrl && !looksLikeSearchBar) {
+          final clickableText = line.trim().split(RegExp(r'\s{2,}')).first;
+          if (clickableText.length >= 5) {
+            return await clickElement(clickableText);
+          }
+        }
+      }
+
+      return false;
     } catch (e) {
       return false;
     }
