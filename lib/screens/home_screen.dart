@@ -53,11 +53,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   bool _lastRequestFromVoice = false;
   bool _wakeWordAvailable = false;
   bool _wakeWordEnabled = false;
+  // ignore: unused_field — written by wake-word event handler; UI binding pending
   bool _wakeWordListening = false;
   bool _microphonePermissionGranted = false;
   bool _speechRecognitionAvailable = false;
   bool _ttsAvailable = false;
+  // ignore: unused_field — written by voice init and wake-word handler; UI binding pending
   String _voiceStatus = 'Checking voice capabilities...';
+  // ignore: unused_field — written by speech recognition callback; UI binding pending
   String _partialTranscript = '';
   bool _streamCancellationRequested = false;
   bool _automaticMemoryEnabled = true;
@@ -2397,9 +2400,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         : snapshot.diagnosisFinalResult,
                   ),
                 ],
-                if (snapshot.errors.isNotEmpty) {
+                if (snapshot.errors.isNotEmpty)
                   detailRow('Recent error', snapshot.errors.last),
-                }
                 const SizedBox(height: 6),
                 Text(
                   'Open Developer Mode for Terminal/Workspace, artifacts, and full telemetry.',

@@ -413,7 +413,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                       modelController.text.trim().isEmpty ||
                       selected.isEmpty ||
                       effectiveKey.isEmpty) {
-                    if (!mounted) return;
+                    if (!context.mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text(
@@ -436,15 +436,16 @@ class _SettingsScreenState extends State<SettingsScreen>
                       ),
                       apiKey: effectiveKey,
                     );
-                    if (mounted)
+                    if (mounted) {
                       setState(() {
                         _providerConfigurations =
                             _providerManager.configurations;
                         _activeProviderId = _providerManager.activeProviderId;
                       });
+                    }
                     if (dialogContext.mounted) Navigator.pop(dialogContext);
                   } catch (error) {
-                    if (mounted) {
+                    if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text('Could not save provider: $error'),
@@ -1310,13 +1311,14 @@ class _SettingsScreenState extends State<SettingsScreen>
                           await _providerManager.deleteProvider(
                             configuration.id,
                           );
-                          if (mounted)
+                          if (mounted) {
                             setState(() {
                               _providerConfigurations =
                                   _providerManager.configurations;
                               _activeProviderId =
                                   _providerManager.activeProviderId;
                             });
+                          }
                         },
                       ),
                     ],
@@ -1519,7 +1521,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                       if (isGranted != true) {
                         final result = await _requestOverlayPermission();
                         if (result != true) {
-                          if (mounted) {
+                          if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text(
@@ -2315,7 +2317,7 @@ class _SettingsScreenState extends State<SettingsScreen>
             ),
             const SizedBox(height: 6),
             if (snapshot.workspaceCommands.isEmpty)
-              {const Text('No workspace commands recorded yet.')}
+              const Text('No workspace commands recorded yet.')
             else
               ...snapshot.workspaceCommands.reversed
                   .take(8)
@@ -2370,7 +2372,7 @@ class _SettingsScreenState extends State<SettingsScreen>
             ),
             const SizedBox(height: 6),
             if (snapshot.upgradePlan == null)
-              {const Text('No active workspace plan.')}
+              const Text('No active workspace plan.')
             else ...[
               Card(
                 child: Padding(
@@ -2406,7 +2408,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                       ),
                       const SizedBox(height: 4),
                       if (snapshot.upgradePlan!.impactedFiles.isEmpty)
-                        {const Text('No impacted files recorded.')}
+                        const Text('No impacted files recorded.')
                       else
                         ...snapshot.upgradePlan!.impactedFiles.map(
                           (file) => ListTile(
