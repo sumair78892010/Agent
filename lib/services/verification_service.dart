@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'screen_automation_service.dart';
 import 'app_launcher_service.dart';
 import 'system_control_service.dart';
@@ -256,6 +257,95 @@ class VerificationService {
       final screenDesc = await _screen.getScreenDescription();
       return !screenDesc.contains('Could not read screen') &&
           screenDesc.trim().isNotEmpty;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  // ------------------------------------------------------------------
+  // FILE OPERATION VERIFICATION
+  // ------------------------------------------------------------------
+
+  /// Verify that a file or directory exists at [path].
+  /// Returns true only if the entity is confirmed to exist on disk.
+  Future<bool> verifyFileExists(String path) async {
+    try {
+      if (path.trim().isEmpty) return false;
+      return await FileSystemEntity.type(path) != FileSystemEntityType.notFound;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Verify that a file was written by reading it back and checking
+  /// that the content matches [expectedContent].
+  /// For large files, only the first [maxCheckBytes] are compared.
+  Future<bool> verifyFileContent(
+    String path, {
+    String? expectedContent,
+    int maxCheckBytes = 4096,
+  }) async {
+    try {
+      if (path.trim().isEmpty) return false;
+      final file = File(path);
+      if (!await file.exists()) return false;
+
+      if (expectedContent == null) return true;
+
+      final actual = await file.readAsString();
+      if (actual.length > maxCheckBytes ||
+          expectedContent.length > maxCheckBytes) {
+        // For large content, compare truncated versions.
+        return actual
+            .substring(0, actual.length > maxCheckBytes ? maxCheckBytes : null)
+            .contains(expectedContent.substring(
+              0,
+              expectedContent.length > maxCheckBytes
+                  ? maxCheckBytes
+                  : null,
+            ));
+      }
+      return actual == expectedContent;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Verify that a file or directory no longer exists at [path].
+  /// Used after delete or move operations.
+  Future<bool> verifyFileGone(String path) async {
+    try {
+      if (path.trim().isEmpty) return false;
+      return await FileSystemEntity.type(path) ==
+          FileSystemEntityType.notFound;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Verify a copy operation: destination exists and source still exists.
+  Future<bool> verifyFileCopied(String source, String destination) async {
+    try {
+      final srcExists =
+          await FileSystemEntity.type(source) != FileSystemEntityType.notFound;
+      final dstExists =
+          await FileSystemEntity.type(destination) !=
+              FileSystemEntityType.notFound;
+      return srcExists && dstExists;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Verify a move operation: destination exists and source is gone.
+  Future<bool> verifyFileMoved(String source, String destination) async {
+    try {
+      final srcGone = await FileSystemEntity.type(source) ==
+          FileSystemEntityType.notFound;
+      final dstExists =
+          await FileSystemEntity.type(destination) !=
+              FileSystemEntityType.notFound;
+      return srcGone && dstExists;
     } catch (_) {
       return false;
     }

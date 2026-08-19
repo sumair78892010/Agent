@@ -266,13 +266,25 @@ class ActionHandler {
           break;
 
         case 'write_file':
-          success = await _fileOps.writeTextFile(
-            action.params['path'] as String? ?? '',
-            action.params['content'] as String? ?? '',
-          );
-          result = success
-              ? 'File written successfully'
-              : 'Could not write file';
+          final writePath = action.params['path'] as String? ?? '';
+          final writeContent = action.params['content'] as String? ?? '';
+          final writeOk = await _fileOps.writeTextFile(writePath, writeContent);
+          if (writeOk) {
+            success = await _verification.verifyFileExists(writePath);
+            if (success && writeContent.isNotEmpty) {
+              success =
+                  await _verification.verifyFileContent(
+                    writePath,
+                    expectedContent: writeContent,
+                  );
+            }
+            result = success
+                ? 'File written and verified at $writePath'
+                : 'File write command succeeded but verification failed';
+          } else {
+            success = false;
+            result = 'Could not write file';
+          }
           break;
 
         case 'list_directory':
@@ -285,33 +297,61 @@ class ActionHandler {
           break;
 
         case 'create_directory':
-          success = await _fileOps.createDirectory(
-            action.params['path'] as String? ?? '',
-          );
-          result = success ? 'Directory created' : 'Could not create directory';
+          final dirPath = action.params['path'] as String? ?? '';
+          final dirOk = await _fileOps.createDirectory(dirPath);
+          if (dirOk) {
+            success = await _verification.verifyFileExists(dirPath);
+            result = success
+                ? 'Directory created and verified at $dirPath'
+                : 'Directory creation command succeeded but path not found';
+          } else {
+            success = false;
+            result = 'Could not create directory';
+          }
           break;
 
         case 'copy_file':
-          success = await _fileOps.copyFile(
-            action.params['source'] as String? ?? '',
-            action.params['destination'] as String? ?? '',
-          );
-          result = success ? 'File copied' : 'Could not copy file';
+          final copySrc = action.params['source'] as String? ?? '';
+          final copyDst = action.params['destination'] as String? ?? '';
+          final copyOk = await _fileOps.copyFile(copySrc, copyDst);
+          if (copyOk) {
+            success = await _verification.verifyFileCopied(copySrc, copyDst);
+            result = success
+                ? 'File copied and verified ($copySrc → $copyDst)'
+                : 'Copy command succeeded but verification failed';
+          } else {
+            success = false;
+            result = 'Could not copy file';
+          }
           break;
 
         case 'move_file':
-          success = await _fileOps.moveFile(
-            action.params['source'] as String? ?? '',
-            action.params['destination'] as String? ?? '',
-          );
-          result = success ? 'File moved' : 'Could not move file';
+          final moveSrc = action.params['source'] as String? ?? '';
+          final moveDst = action.params['destination'] as String? ?? '';
+          final moveOk = await _fileOps.moveFile(moveSrc, moveDst);
+          if (moveOk) {
+            success = await _verification.verifyFileMoved(moveSrc, moveDst);
+            result = success
+                ? 'File moved and verified ($moveSrc → $moveDst)'
+                : 'Move command succeeded but verification failed';
+          } else {
+            success = false;
+            result = 'Could not move file';
+          }
           break;
 
         case 'delete_file':
-          success = await _fileOps.deleteFile(
-            action.params['path'] as String? ?? '',
-          );
-          result = success ? 'File deleted' : 'Could not delete file';
+          final delPath = action.params['path'] as String? ?? '';
+          final delOk = await _fileOps.deleteFile(delPath);
+          if (delOk) {
+            success = await _verification.verifyFileGone(delPath);
+            result = success
+                ? 'File deleted and verified at $delPath'
+                : 'Delete command succeeded but file still exists';
+          } else {
+            success = false;
+            result = 'Could not delete file';
+          }
           break;
 
         case 'search_files':
