@@ -14,6 +14,8 @@ import '../widgets/background_glows.dart';
 import '../widgets/mode_selector.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/task_progress_panel.dart';
+import '../widgets/chat_input_bar.dart';
+import '../widgets/chat_history_drawer.dart';
 import '../services/chat_history_service.dart';
 import '../services/notification_service.dart';
 import '../services/permission_service.dart';
@@ -22,7 +24,6 @@ import '../services/task_telemetry_service.dart';
 import '../services/research_report_service.dart';
 import '../services/settings_service.dart';
 import 'settings_screen.dart';
-import 'task_history_screen.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../main.dart';
@@ -1467,7 +1468,22 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
         ],
       ),
-      drawer: _buildDrawer(context, isDark),
+      drawer: ChatHistoryDrawer(
+        sessionId: _sessionId,
+        memoryEnabledForConversation: _memoryEnabledForConversation,
+        automaticMemoryEnabled: _automaticMemoryEnabled,
+        historyQuery: _historyQuery,
+        onNewChat: _startNewChat,
+        onMemoryChanged: _setConversationMemoryEnabled,
+        onQueryChanged: (q) => setState(() => _historyQuery = q),
+        onLoadSession: _loadChatSession,
+        onRenameSession: _renameSession,
+        onDeleteSession: _deleteSession,
+        aiService: _aiService,
+        shizukuService: _actionHandler.shizuku,
+        screenAutomationService: _actionHandler.screenAutomation,
+        voiceService: _voiceService,
+      ),
       body: Stack(
         children: [
           // Background mesh glows
@@ -1592,549 +1608,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               // Voice readiness/status lives in Settings. Keep only the
               // compact microphone control in the composer.
 
-              // Custom Input bar
-              _buildInputBar(isDark),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDrawer(BuildContext context, bool isDark) {
-    final drawerBg = isDark ? const Color(0xFF0B0F19) : const Color(0xFFF8FAFC);
-    final textStyle = TextStyle(
-      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
-      fontWeight: FontWeight.w600,
-      fontSize: 13.5,
-    );
-    final headerStyle = TextStyle(
-      color: isDark ? Colors.white : const Color(0xFF1E293B),
-      fontSize: 17,
-      fontWeight: FontWeight.w900,
-      letterSpacing: -0.5,
-    );
-
-    return Drawer(
-      backgroundColor: drawerBg,
-      child: Column(
-        children: [
-          // Drawer Header
-          Container(
-            padding: const EdgeInsets.only(
-              top: 60,
-              bottom: 20,
-              left: 24,
-              right: 24,
-            ),
-            alignment: Alignment.centerLeft,
-            child: Row(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Image.asset(
-                    'assets/app-logo.png',
-                    width: 28,
-                    height: 28,
-                    fit: BoxFit.cover,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text('Agent Cypher', style: headerStyle),
-              ],
-            ),
-          ),
-
-          // New Chat Button
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Container(
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.primary.withValues(alpha: 0.2),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () {
-                    Navigator.pop(context); // Close drawer
-                    _startNewChat();
-                  },
-                  borderRadius: BorderRadius.circular(16),
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 12),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.add_comment_rounded,
-                          color: Colors.white,
-                          size: 16,
-                        ),
-                        SizedBox(width: 8),
-                        Text(
-                          'New Chat',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13.5,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-
-          const Divider(indent: 16, endIndent: 16, height: 20),
-
-          ListTile(
-            dense: true,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 20),
-            leading: Icon(
-              _memoryEnabledForConversation
-                  ? Icons.psychology_alt_rounded
-                  : Icons.psychology_alt_outlined,
-              size: 20,
-            ),
-            title: const Text('Memory for this conversation'),
-            subtitle: Text(
-              _memoryEnabledForConversation
-                  ? 'Use approved saved memories when relevant'
-                  : 'Do not use saved memories in this chat',
-              style: const TextStyle(fontSize: 11),
-            ),
-            trailing: Switch.adaptive(
-              value: _memoryEnabledForConversation,
-              onChanged: _automaticMemoryEnabled
-                  ? _setConversationMemoryEnabled
-                  : null,
-            ),
-          ),
-
-          // Section CHAT HISTORY
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 6, 24, 8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'CHAT HISTORY',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                      color: Theme.of(context).primaryColor,
-                      letterSpacing: 1.5,
-                    ),
-                  ),
-                ),
-                Text(
-                  'LOCAL',
-                  style: TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w700,
-                    color: isDark ? Colors.grey[600] : Colors.grey[500],
-                    letterSpacing: 1,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            child: TextField(
-              onChanged: (value) => setState(() => _historyQuery = value),
-              decoration: InputDecoration(
-                hintText: 'Search conversations',
-                prefixIcon: const Icon(Icons.search_rounded, size: 18),
-                suffixIcon: _historyQuery.isEmpty
-                    ? null
-                    : IconButton(
-                        icon: const Icon(Icons.clear_rounded, size: 17),
-                        onPressed: () => setState(() => _historyQuery = ''),
-                      ),
-                isDense: true,
-                filled: true,
-                fillColor: isDark ? const Color(0xFF151D30) : Colors.white,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: BorderSide.none,
-                ),
-              ),
-            ),
-          ),
-
-          // Chat Sessions List
-          Expanded(
-            child: FutureBuilder<List<ChatSession>>(
-              future: ChatHistoryService.loadSessions(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return Center(
-                    child: Text(
-                      'No recent chats',
-                      style: TextStyle(
-                        color: isDark ? Colors.grey[800] : Colors.grey[400],
-                        fontSize: 12,
-                      ),
-                    ),
-                  );
-                }
-
-                final sessions = ChatHistoryService.filterSessions(
-                  snapshot.data!,
-                  _historyQuery,
-                );
-                return ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  itemCount: sessions.length,
-                  itemBuilder: (context, index) {
-                    final session = sessions[index];
-                    final isCurrent = session.id == _sessionId;
-
-                    return Container(
-                      margin: const EdgeInsets.symmetric(
-                        vertical: 2,
-                        horizontal: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: isCurrent
-                            ? Theme.of(
-                                context,
-                              ).colorScheme.primary.withValues(alpha: 0.08)
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(12),
-                        border: isCurrent
-                            ? Border.all(
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.primary.withValues(alpha: 0.15),
-                              )
-                            : null,
-                      ),
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 0,
-                        ),
-                        dense: true,
-                        leading: Icon(
-                          Icons.chat_bubble_outline_rounded,
-                          size: 15,
-                          color: isCurrent
-                              ? Theme.of(context).colorScheme.primary
-                              : (isDark ? Colors.grey[600] : Colors.grey[500]),
-                        ),
-                        title: Text(
-                          session.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: textStyle.copyWith(
-                            fontWeight: isCurrent
-                                ? FontWeight.bold
-                                : FontWeight.w500,
-                            color: isCurrent
-                                ? (isDark
-                                      ? Colors.white
-                                      : const Color(0xFF1E293B))
-                                : null,
-                          ),
-                        ),
-                        trailing: PopupMenuButton<String>(
-                          icon: Icon(
-                            Icons.more_horiz_rounded,
-                            size: 18,
-                            color: isDark ? Colors.grey[500] : Colors.grey[600],
-                          ),
-                          onSelected: (value) async {
-                            if (value == 'rename') {
-                              await _renameSession(session);
-                            }
-                            if (value == 'delete') {
-                              await _deleteSession(session);
-                            }
-                          },
-                          itemBuilder: (_) => const [
-                            PopupMenuItem(
-                              value: 'rename',
-                              child: Text('Rename'),
-                            ),
-                            PopupMenuItem(
-                              value: 'delete',
-                              child: Text('Delete'),
-                            ),
-                          ],
-                        ),
-                        onTap: () {
-                          Navigator.pop(context);
-                          _loadChatSession(session);
-                        },
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
-          ),
-
-          const Divider(indent: 16, endIndent: 16, height: 20),
-
-          // Section TASKS & SETTINGS
-          ListTile(
-            horizontalTitleGap: 8,
-            leading: Icon(
-              Icons.history_rounded,
-              color: isDark ? Colors.grey[400] : Colors.grey[600],
-              size: 20,
-            ),
-            title: Text('Task History', style: textStyle),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const TaskHistoryScreen()),
-              );
-            },
-          ),
-          ListTile(
-            horizontalTitleGap: 8,
-            leading: Icon(
-              Icons.settings_rounded,
-              color: isDark ? Colors.grey[400] : Colors.grey[600],
-              size: 20,
-            ),
-            title: Text('Settings', style: textStyle),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => SettingsScreen(
-                    aiService: _aiService,
-                    shizukuService: _actionHandler.shizuku,
-                    screenAutomationService: _actionHandler.screenAutomation,
-                    voiceService: _voiceService,
-                  ),
-                ),
-              );
-            },
-          ),
-          const SizedBox(height: 20),
-        ],
-      ),
-    );
-  }
-
-
-  Widget _buildInputBar(bool isDark) {
-    return Container(
-      padding: EdgeInsets.fromLTRB(
-        16,
-        8,
-        16,
-        16,
-      ),
-      decoration: const BoxDecoration(color: Colors.transparent),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (_selectedAttachments.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: _selectedAttachments
-                        .map(
-                          (attachment) => Padding(
-                            padding: const EdgeInsets.only(right: 6),
-                            child: InputChip(
-                              label: ConstrainedBox(
-                                constraints: const BoxConstraints(
-                                  maxWidth: 150,
-                                ),
-                                child: Text(
-                                  attachment.name,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              onDeleted: _isLoading
-                                  ? null
-                                  : () => _removeAttachment(attachment.id),
-                              visualDensity: VisualDensity.compact,
-                            ),
-                          ),
-                        )
-                        .toList(),
-                  ),
-                ),
-              ),
-            ),
-          Row(
-            children: [
-              // Glowing Voice Mic button
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: _isListening
-                      ? Colors.redAccent
-                      : _isSpeaking
-                      ? Colors.indigoAccent
-                      : Theme.of(context).cardTheme.color,
-                  border: Border.all(
-                    color: _isListening
-                        ? Colors.redAccent
-                        : _isSpeaking
-                        ? Colors.indigoAccent
-                        : Theme.of(
-                            context,
-                          ).colorScheme.onSurface.withValues(alpha: 0.08),
-                    width: 1.2,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
-                      blurRadius: 8,
-                      offset: const Offset(0, 4),
-                    ),
-                    if (_isListening)
-                      BoxShadow(
-                        color: Colors.redAccent.withValues(alpha: 0.4),
-                        blurRadius: 12,
-                        spreadRadius: 2,
-                      ),
-                    if (_isSpeaking)
-                      BoxShadow(
-                        color: Colors.indigoAccent.withValues(alpha: 0.4),
-                        blurRadius: 12,
-                        spreadRadius: 2,
-                      ),
-                  ],
-                ),
-                child: IconButton(
-                  tooltip: _isSpeaking
-                      ? 'Interrupt spoken response'
-                      : _isListening
-                      ? 'Stop listening'
-                      : 'Activate microphone',
-                  icon: Icon(
-                    _isSpeaking
-                        ? Icons.volume_off_rounded
-                        : _isListening
-                        ? Icons.mic_rounded
-                        : Icons.mic_none_rounded,
-                    color: _isListening || _isSpeaking
-                        ? Colors.white
-                        : Theme.of(context).colorScheme.primary,
-                  ),
-                  onPressed: _isLoading
-                      ? null
-                      : (_isSpeaking ? _stopSpeaking : _toggleVoice),
-                ),
-              ),
-              const SizedBox(width: 10),
-
-              // Custom Text input container
-              Expanded(
-                child: Container(
-                  constraints: const BoxConstraints(
-                    minHeight: 52,
-                    maxHeight: 150,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).cardTheme.color,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.onSurface.withValues(alpha: 0.08),
-                      width: 1.2,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
-                        blurRadius: 8,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      IconButton(
-                        tooltip: 'Attach file',
-                        icon: Icon(
-                          Icons.attach_file_rounded,
-                          size: 20,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                        onPressed: _isLoading ? null : _pickFiles,
-                      ),
-                      Expanded(
-                        child: TextField(
-                          controller: _textController,
-                          style: const TextStyle(fontSize: 14),
-                          minLines: 1,
-                          maxLines: 4,
-                          decoration: InputDecoration(
-                            hintText: _isListening
-                                ? 'Listening...'
-                                : 'Message Agent Cypher...',
-                            hintStyle: TextStyle(
-                              fontSize: 13,
-                              color: isDark
-                                  ? Colors.grey[600]
-                                  : Colors.grey[400],
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 20,
-                              vertical: 12,
-                            ),
-                            border: InputBorder.none,
-                          ),
-                          textInputAction: TextInputAction.send,
-                          onSubmitted: _isLoading
-                              ? null
-                              : (text) => _sendMessage(text),
-                        ),
-                      ),
-
-                      // Solid Send button
-                      Container(
-                        margin: const EdgeInsets.only(right: 6),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                        child: IconButton(
-                          icon: const Icon(
-                            Icons.send_rounded,
-                            size: 16,
-                            color: Colors.white,
-                          ),
-                          onPressed: _isLoading
-                              ? null
-                              : () => _sendMessage(_textController.text),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+              ChatInputBar(
+                textController: _textController,
+                isDark: isDark,
+                isLoading: _isLoading,
+                isListening: _isListening,
+                isSpeaking: _isSpeaking,
+                selectedAttachments: _selectedAttachments,
+                onSend: () => _sendMessage(_textController.text),
+                onSendText: _isLoading ? null : (text) => _sendMessage(text),
+                onToggleVoice: _toggleVoice,
+                onStopSpeaking: _stopSpeaking,
+                onPickFiles: _pickFiles,
+                onRemoveAttachment: _isLoading ? null : _removeAttachment,
               ),
             ],
           ),
@@ -2142,4 +1628,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       ),
     );
   }
+
+
+
 }
