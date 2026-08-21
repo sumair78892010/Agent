@@ -35,10 +35,11 @@ void main() {
       final home = read('screens/home_screen.dart');
       expect(bubble, contains("'Cypher'"));
       expect(bubble, contains("'assets/app-logo.png'"));
-      expect(home, contains('Observable execution details'));
-      expect(home, contains('plannedAction'));
-      expect(home, contains('verificationResult'));
-      expect(home, contains('Open Developer Mode for Terminal/Workspace'));
+      final panel = read('widgets/task_progress_panel.dart');
+      expect(panel, contains('Observable execution details'));
+      expect(panel, contains('plannedAction'));
+      expect(panel, contains('verificationResult'));
+      expect(panel, contains('Open Developer Mode for Terminal/Workspace'));
       expect(home, isNot(contains('chain of thought')));
     },
   );

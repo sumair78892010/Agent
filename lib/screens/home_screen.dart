@@ -10,6 +10,10 @@ import '../services/ai_service.dart';
 import '../services/action_handler.dart';
 import '../services/voice_service.dart';
 import '../widgets/message_bubble.dart';
+import '../widgets/background_glows.dart';
+import '../widgets/mode_selector.dart';
+import '../widgets/empty_state.dart';
+import '../widgets/task_progress_panel.dart';
 import '../services/chat_history_service.dart';
 import '../services/notification_service.dart';
 import '../services/permission_service.dart';
@@ -1467,7 +1471,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       body: Stack(
         children: [
           // Background mesh glows
-          _buildBackgroundGlows(isDark),
+          BackgroundGlows(isDark: isDark),
 
           Positioned.fill(
             child: BackdropFilter(
@@ -1479,7 +1483,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           Column(
             children: [
               // Pill selector switcher
-              _buildModeSelector(isDark),
+              ModeSelector(
+            currentMode: _mode,
+            onModeChanged: (m) => setState(() => _mode = m),
+            isDark: isDark,
+          ),
 
               // API key warning banner
               if (!_aiService.isConfigured)
@@ -1540,7 +1548,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               // Chat content area
               Expanded(
                 child: _messages.isEmpty
-                    ? _buildEmptyState(isDark)
+                    ? EmptyState(
+                        mode: _mode,
+                        isDark: isDark,
+                        onSuggestionTap: _sendMessage,
+                      )
                     : ListView.builder(
                         controller: _scrollController,
                         physics: const BouncingScrollPhysics(),
@@ -1571,7 +1583,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       ),
               ),
 
-              if (_isLoading) _buildTaskProgressPanel(isDark),
+              if (_isLoading)
+                TaskProgressPanel(
+                  isDark: isDark,
+                  onStop: _stopCurrentOperation,
+                ),
 
               // Voice readiness/status lives in Settings. Keep only the
               // compact microphone control in the composer.
@@ -1921,502 +1937,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  Widget _buildBackgroundGlows(bool isDark) {
-    return Positioned.fill(
-      child: Stack(
-        children: [
-          Positioned(
-            top: -150,
-            left: -50,
-            child: Container(
-              width: 400,
-              height: 400,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    isDark
-                        ? const Color(0xFF6366F1).withValues(alpha: 0.24)
-                        : const Color(0xFF4F46E5).withValues(alpha: 0.12),
-                    isDark
-                        ? const Color(0xFF6366F1).withValues(alpha: 0.0)
-                        : const Color(0xFF4F46E5).withValues(alpha: 0.0),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: 50,
-            right: -100,
-            child: Container(
-              width: 350,
-              height: 350,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    isDark
-                        ? const Color(0xFF38BDF8).withValues(alpha: 0.18)
-                        : const Color(0xFF0EA5E9).withValues(alpha: 0.09),
-                    isDark
-                        ? const Color(0xFF38BDF8).withValues(alpha: 0.0)
-                        : const Color(0xFF0EA5E9).withValues(alpha: 0.0),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildModeSelector(bool isDark) {
-    final activeBg = isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0);
-
-    return Center(
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 12),
-        padding: const EdgeInsets.all(4),
-        decoration: BoxDecoration(
-          color: activeBg,
-          borderRadius: BorderRadius.circular(30),
-          border: Border.all(
-            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.06),
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildModeButton(
-              'chat',
-              'Chat',
-              Icons.chat_bubble_outline_rounded,
-              isDark,
-            ),
-            _buildModeButton(
-              'agent',
-              'Agent',
-              Icons.smart_toy_outlined,
-              isDark,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildModeButton(
-    String modeId,
-    String label,
-    IconData icon,
-    bool isDark,
-  ) {
-    final isSelected = _mode == modeId;
-
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _mode = modeId;
-        });
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(26),
-          color: isSelected
-              ? Theme.of(context).colorScheme.primary
-              : Colors.transparent,
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.primary.withValues(alpha: 0.2),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ]
-              : null,
-        ),
-        child: Row(
-          children: [
-            Icon(
-              icon,
-              size: 15,
-              color: isSelected
-                  ? Colors.white
-                  : (isDark
-                        ? const Color(0xFF94A3B8)
-                        : const Color(0xFF475569)),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: TextStyle(
-                color: isSelected
-                    ? Colors.white
-                    : (isDark
-                          ? const Color(0xFF94A3B8)
-                          : const Color(0xFF475569)),
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEmptyState(bool isDark) {
-    final time = DateTime.now();
-    String timeGreeting = 'Hello';
-    if (time.hour >= 5 && time.hour < 12) {
-      timeGreeting = 'Hello, good morning.';
-    } else if (time.hour >= 12 && time.hour < 17) {
-      timeGreeting = 'Hello, good afternoon.';
-    } else if (time.hour >= 17 && time.hour < 22) {
-      timeGreeting = 'Hello, good evening.';
-    } else {
-      timeGreeting = 'Hello.';
-    }
-
-    final suggestions = _mode == 'chat'
-        ? [
-            'Write a professional email',
-            'Explain quantum computing simply',
-            'Brainstorm mobile app ideas',
-            'Write a poem about robots',
-          ]
-        : [
-            'Open YouTube and search for cats',
-            'Call Mom',
-            'Set volume to 80%',
-            'What\'s on my screen?',
-          ];
-
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-        child: Column(
-          children: [
-            const SizedBox(height: 10),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    timeGreeting,
-                    style: TextStyle(
-                      fontSize: 30,
-                      fontWeight: FontWeight.w300,
-                      color: isDark
-                          ? const Color(0xFF94A3B8)
-                          : const Color(0xFF64748B),
-                      letterSpacing: -1.5,
-                      height: 1.1,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'How can I help you?',
-                    style: TextStyle(
-                      fontSize: 30,
-                      fontWeight: FontWeight.w600,
-                      color: Theme.of(context).colorScheme.primary,
-                      letterSpacing: -1.5,
-                      height: 1.2,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 48),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'SUGGESTIONS',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
-                  color: isDark
-                      ? const Color(0xFF94A3B8)
-                      : const Color(0xFF475569),
-                  letterSpacing: 1.5,
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              height: 52,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                physics: const BouncingScrollPhysics(),
-                itemCount: suggestions.length,
-                itemBuilder: (context, index) {
-                  final suggestion = suggestions[index];
-                  return Container(
-                    margin: const EdgeInsets.only(right: 12),
-                    child: InkWell(
-                      onTap: () => _sendMessage(suggestion),
-                      borderRadius: BorderRadius.circular(16),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 12,
-                        ),
-                        decoration: BoxDecoration(
-                          color: isDark
-                              ? const Color(0xFF151D30)
-                              : Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: isDark
-                                ? const Color(0xFF243049).withValues(alpha: 0.4)
-                                : const Color(0xFFE2E8F0),
-                            width: 1.2,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: isDark ? 0.1 : 0.02,),
-                              blurRadius: 8,
-                              offset: const Offset(0, 3),
-                            ),
-                          ],
-                        ),
-                        child: Center(
-                          child: Text(
-                            suggestion,
-                            style: TextStyle(
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w600,
-                              color: isDark
-                                  ? const Color(0xFFF8FAFC)
-                                  : const Color(0xFF1E293B),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTaskProgressPanel(bool isDark) {
-    return ValueListenableBuilder<TaskDeveloperSnapshot>(
-      valueListenable: TaskTelemetryService.shared.developerState,
-      builder: (context, snapshot, _) {
-        if (!snapshot.isRunning && snapshot.status == 'idle') {
-          return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-            child: Row(
-              children: [
-                const SizedBox(
-                  width: 14,
-                  height: 14,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-                const SizedBox(width: 10),
-                const Expanded(child: Text('Processing your request…')),
-                TextButton.icon(
-                  onPressed: _stopCurrentOperation,
-                  icon: const Icon(Icons.stop_circle_rounded, size: 16),
-                  label: const Text('Stop'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.redAccent,
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                ),
-              ],
-            ),
-          );
-        }
-
-        const phases = <MapEntry<String, String>>[
-          MapEntry('understanding', 'Understand'),
-          MapEntry('planning', 'Plan'),
-          MapEntry('screen_observation', 'Observe'),
-          MapEntry('target_selection', 'Select target'),
-          MapEntry('action', 'Perform action'),
-          MapEntry('verification', 'Verify'),
-          MapEntry('recovery', 'Recover'),
-          MapEntry('complete', 'Complete'),
-        ];
-        final activeStage = switch (snapshot.executionStage) {
-          'starting' => 'understanding',
-          'ai_request' => 'planning',
-          'fast_path' => 'action',
-          _ => snapshot.executionStage,
-        };
-        final activeIndex = phases.indexWhere(
-          (phase) => phase.key == activeStage,
-        );
-        final isFailure =
-            snapshot.status == 'failed' ||
-            activeStage == 'error' ||
-            snapshot.failureCategory.isNotEmpty;
-        final currentLabel = activeIndex >= 0
-            ? phases[activeIndex].value
-            : (isFailure ? 'Execution issue' : activeStage);
-        final accent = isFailure ? Colors.orangeAccent : Colors.indigoAccent;
-
-        Widget phaseIcon(int index) {
-          final complete = activeIndex >= 0 && index < activeIndex;
-          final current = activeIndex == index;
-          return Icon(
-            complete
-                ? Icons.check_circle_rounded
-                : current
-                ? Icons.radio_button_checked_rounded
-                : Icons.radio_button_unchecked_rounded,
-            size: 15,
-            color: complete || current ? accent : Colors.grey,
-          );
-        }
-
-        Widget detailRow(String label, String value) {
-          if (value.trim().isEmpty) return const SizedBox.shrink();
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 4),
-            child: Text.rich(
-              TextSpan(
-                children: [
-                  TextSpan(
-                    text: '$label: ',
-                    style: const TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                  TextSpan(text: value),
-                ],
-              ),
-              style: TextStyle(
-                fontSize: 11,
-                color: isDark ? Colors.white70 : Colors.black87,
-              ),
-            ),
-          );
-        }
-
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-          child: Card(
-            margin: EdgeInsets.zero,
-            child: ExpansionTile(
-              tilePadding: const EdgeInsets.symmetric(horizontal: 14),
-              childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
-              leading: Icon(Icons.route_rounded, color: accent),
-              title: Text(
-                snapshot.rootGoal.isEmpty ? currentLabel : snapshot.rootGoal,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              subtitle: Text(
-                isFailure
-                    ? 'Issue detected · $currentLabel'
-                    : 'Observable execution · $currentLabel',
-                style: TextStyle(color: accent, fontSize: 11),
-              ),
-              trailing: TextButton.icon(
-                onPressed: _stopCurrentOperation,
-                icon: const Icon(Icons.stop_circle_rounded, size: 16),
-                label: const Text('Stop'),
-                style: TextButton.styleFrom(
-                  foregroundColor: Colors.redAccent,
-                  padding: const EdgeInsets.symmetric(horizontal: 6),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-              ),
-              children: [
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Wrap(
-                    spacing: 10,
-                    runSpacing: 6,
-                    children: [
-                      for (var index = 0; index < phases.length; index++)
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            phaseIcon(index),
-                            const SizedBox(width: 4),
-                            Text(
-                              phases[index].value,
-                              style: const TextStyle(fontSize: 10),
-                            ),
-                          ],
-                        ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  'Observable execution details',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    color: isDark ? Colors.white70 : Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                detailRow('Sub-goal', snapshot.currentSubGoal),
-                detailRow('App', snapshot.currentAppPackage),
-                detailRow('Action', snapshot.plannedAction),
-                detailRow('Target', snapshot.selectedTarget),
-                detailRow('Expected', snapshot.expectedResult),
-                detailRow('Verification', snapshot.verificationResult),
-                if (snapshot.recoveryAttempts > 0)
-                  detailRow(
-                    'Recovery attempts',
-                    '${snapshot.recoveryAttempts}',
-                  ),
-                if (isFailure) ...[
-                  detailRow('What failed', snapshot.diagnosisObserved),
-                  detailRow('Detected', snapshot.diagnosisEvidence),
-                  detailRow(
-                    'Retry/recovery',
-                    snapshot.diagnosisRecoveryAttempt,
-                  ),
-                  detailRow(
-                    'Final result',
-                    snapshot.diagnosisFinalResult.isEmpty
-                        ? snapshot.finalResult
-                        : snapshot.diagnosisFinalResult,
-                  ),
-                ],
-                if (snapshot.errors.isNotEmpty)
-                  detailRow('Recent error', snapshot.errors.last),
-                const SizedBox(height: 6),
-                Text(
-                  'Open Developer Mode for Terminal/Workspace, artifacts, and full telemetry.',
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: isDark ? Colors.white54 : Colors.black54,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
 
   Widget _buildInputBar(bool isDark) {
     return Container(
