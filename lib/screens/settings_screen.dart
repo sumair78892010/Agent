@@ -26,6 +26,12 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 import '../config/feature_flags.dart';
 import '../widgets/unified_task_workspace.dart';
+import '../widgets/settings/settings_card.dart';
+import '../widgets/settings/settings_input_decoration.dart';
+import '../widgets/settings/settings_category_header.dart';
+import '../widgets/settings/capability_availability_tile.dart';
+import '../widgets/settings/shizuku_status_card.dart';
+import '../widgets/settings/accessibility_status_card.dart';
 
 class SettingsScreen extends StatefulWidget {
   final AiService aiService;
@@ -762,157 +768,8 @@ class _SettingsScreenState extends State<SettingsScreen>
     }
   }
 
-  Widget _buildSettingsCard({
-    required IconData icon,
-    required String title,
-    String? subtitle,
-    required List<Widget> children,
-    required bool isDark,
-  }) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 20),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Theme.of(
-                      context,
-                    ).primaryColor.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(
-                    icon,
-                    color: Theme.of(context).primaryColor,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      if (subtitle != null) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          subtitle,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: isDark
-                                ? const Color(0xFF94A3B8)
-                                : const Color(0xFF475569),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            ...children,
-          ],
-        ),
-      ),
-    );
-  }
 
-  InputDecoration _buildInputDecoration({
-    required String labelText,
-    required String hintText,
-    Widget? prefixIcon,
-    Widget? suffixIcon,
-  }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return InputDecoration(
-      labelText: labelText,
-      hintText: hintText,
-      prefixIcon: prefixIcon,
-      suffixIcon: suffixIcon,
-      filled: true,
-      fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-      labelStyle: TextStyle(
-        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-        fontSize: 13,
-        fontWeight: FontWeight.w600,
-      ),
-      hintStyle: TextStyle(
-        color: isDark ? const Color(0xFF475569) : const Color(0xFF94A3B8),
-        fontSize: 13,
-      ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(
-          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
-          width: 1.2,
-        ),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(
-          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
-          width: 1.2,
-        ),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(
-          color: Theme.of(context).colorScheme.primary,
-          width: 1.8,
-        ),
-      ),
-      floatingLabelBehavior: FloatingLabelBehavior.auto,
-    );
-  }
 
-  Widget _buildCategoryHeader({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-  }) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 10, 4, 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 18, color: colorScheme.primary),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    color: colorScheme.primary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1.4,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildMemoryManager() {
     if (_memoryLoading) {
@@ -999,19 +856,6 @@ class _SettingsScreenState extends State<SettingsScreen>
     );
   }
 
-  Widget _buildCapabilityAvailabilityTile({
-    required IconData icon,
-    required String title,
-    required String description,
-  }) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: Icon(icon),
-      title: Text(title),
-      subtitle: Text(description),
-      trailing: const Chip(label: Text('Existing runtime')),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -1026,17 +870,16 @@ class _SettingsScreenState extends State<SettingsScreen>
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
         children: [
-          _buildCategoryHeader(
+          SettingsCategoryHeader(
             title: 'GENERAL',
             subtitle: 'Appearance, branding, language, and app behavior',
             icon: Icons.tune_rounded,
           ),
           // Appearance and theme use the live app-level themeNotifier.
-          _buildSettingsCard(
+          SettingsCard(
             icon: Icons.palette_outlined,
             title: 'Appearance',
             subtitle: 'Choose your preferred color theme',
-            isDark: isDark,
             children: [
               ValueListenableBuilder<ThemeMode>(
                 valueListenable: themeNotifier,
@@ -1108,24 +951,23 @@ class _SettingsScreenState extends State<SettingsScreen>
             ],
           ),
 
-          _buildSettingsCard(
+          SettingsCard(
             icon: Icons.tune_outlined,
             title: 'App behavior',
             subtitle:
                 'Current runtime defaults for language, haptics, and notifications',
-            isDark: isDark,
             children: [
-              _buildCapabilityAvailabilityTile(
+              CapabilityAvailabilityTile(
                 icon: Icons.language_rounded,
                 title: 'Language',
                 description: 'The app currently follows the device language.',
               ),
-              _buildCapabilityAvailabilityTile(
+              CapabilityAvailabilityTile(
                 icon: Icons.vibration_rounded,
                 title: 'Haptic feedback',
                 description: 'Uses platform/runtime defaults where supported.',
               ),
-              _buildCapabilityAvailabilityTile(
+              CapabilityAvailabilityTile(
                 icon: Icons.notifications_outlined,
                 title: 'Notifications',
                 description:
@@ -1134,22 +976,21 @@ class _SettingsScreenState extends State<SettingsScreen>
             ],
           ),
 
-          _buildCategoryHeader(
+          SettingsCategoryHeader(
             title: 'AI',
             subtitle:
                 'Provider, model, credentials, routing, and generation limits',
             icon: Icons.psychology_rounded,
           ),
           // AI configuration remains backed by AiService and ProviderManager.
-          _buildSettingsCard(
+          SettingsCard(
             icon: Icons.psychology_outlined,
             title: 'AI Engine Configuration',
             subtitle: 'Supports any OpenAI-compatible API endpoint',
-            isDark: isDark,
             children: [
               TextField(
                 controller: _apiKeyController,
-                decoration: _buildInputDecoration(
+                decoration: settingsInputDecoration(context: context, 
                   labelText: 'API Key',
                   hintText: 'sk-...',
                   prefixIcon: const Icon(Icons.key_rounded, size: 18),
@@ -1166,7 +1007,7 @@ class _SettingsScreenState extends State<SettingsScreen>
               const SizedBox(height: 12),
               TextField(
                 controller: _baseUrlController,
-                decoration: _buildInputDecoration(
+                decoration: settingsInputDecoration(context: context, 
                   labelText: 'API Base URL',
                   hintText: 'https://api.deepseek.com',
                   prefixIcon: const Icon(Icons.dns_rounded, size: 18),
@@ -1235,7 +1076,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                   Expanded(
                     child: TextField(
                       controller: _modelController,
-                      decoration: _buildInputDecoration(
+                      decoration: settingsInputDecoration(context: context, 
                         labelText: 'Model',
                         hintText: 'deepseek-chat',
                         prefixIcon: const Icon(
@@ -1278,11 +1119,10 @@ class _SettingsScreenState extends State<SettingsScreen>
             ],
           ),
 
-          _buildSettingsCard(
+          SettingsCard(
             icon: Icons.alt_route_rounded,
             title: 'Capability Routing',
             subtitle: 'Use the current model first, then compatible fallbacks',
-            isDark: isDark,
             children: [
               if (_providerConfigurations.isEmpty)
                 const Text(
@@ -1366,19 +1206,18 @@ class _SettingsScreenState extends State<SettingsScreen>
             ],
           ),
 
-          _buildSettingsCard(
+          SettingsCard(
             icon: Icons.auto_awesome_outlined,
             title: 'Capability surface',
             subtitle:
                 'Capabilities are selected through the existing provider profiles',
-            isDark: isDark,
             children: [
-              _buildCapabilityAvailabilityTile(
+              CapabilityAvailabilityTile(
                 icon: Icons.stream_rounded,
                 title: 'Streaming',
                 description: 'Enabled by the current chat request pipeline.',
               ),
-              _buildCapabilityAvailabilityTile(
+              CapabilityAvailabilityTile(
                 icon: Icons.visibility_rounded,
                 title: 'Vision and tool use',
                 description:
@@ -1388,11 +1227,10 @@ class _SettingsScreenState extends State<SettingsScreen>
           ),
 
           // Parameters are part of the AI category and persist through AiService.
-          _buildSettingsCard(
+          SettingsCard(
             icon: Icons.tune_outlined,
             title: 'Tuning & Boundaries',
             subtitle: 'Configure LLM agent parameters',
-            isDark: isDark,
             children: [
               SwitchListTile(
                 title: const Text('Disable Maximum Steps'),
@@ -1438,7 +1276,7 @@ class _SettingsScreenState extends State<SettingsScreen>
               TextField(
                 controller: _maxTokensController,
                 keyboardType: TextInputType.number,
-                decoration: _buildInputDecoration(
+                decoration: settingsInputDecoration(context: context, 
                   labelText: 'Context Limit (Max Tokens)',
                   hintText: '1024',
                   prefixIcon: const Icon(Icons.token_rounded, size: 18),
@@ -1470,18 +1308,17 @@ class _SettingsScreenState extends State<SettingsScreen>
             ],
           ),
 
-          _buildCategoryHeader(
+          SettingsCategoryHeader(
             title: 'AGENT',
             subtitle:
                 'Execution boundaries, context handling, verification, and recovery',
             icon: Icons.smart_toy_rounded,
           ),
           // Agent behavior uses existing AiService and task-execution settings.
-          _buildSettingsCard(
+          SettingsCard(
             icon: Icons.extension_outlined,
             title: 'Behavior & Extensions',
             subtitle: 'Additional feature flags and overlay options',
-            isDark: isDark,
             children: [
               SwitchListTile(
                 title: const Text('Use Screen Compression'),
@@ -1560,26 +1397,25 @@ class _SettingsScreenState extends State<SettingsScreen>
             ],
           ),
 
-          _buildCategoryHeader(
+          SettingsCategoryHeader(
             title: 'VOICE',
             subtitle:
                 'Speech recognition and text-to-speech runtime capabilities',
             icon: Icons.mic_none_rounded,
           ),
-          _buildSettingsCard(
+          SettingsCard(
             icon: Icons.record_voice_over_rounded,
             title: 'Voice runtime',
             subtitle:
                 'Voice actions remain connected to the existing VoiceService',
-            isDark: isDark,
             children: [
-              _buildCapabilityAvailabilityTile(
+              CapabilityAvailabilityTile(
                 icon: Icons.graphic_eq_rounded,
                 title: 'Speech recognition',
                 description:
                     'Available from the chat composer microphone action.',
               ),
-              _buildCapabilityAvailabilityTile(
+              CapabilityAvailabilityTile(
                 icon: Icons.volume_up_rounded,
                 title: 'Text-to-speech',
                 description:
@@ -1589,67 +1425,73 @@ class _SettingsScreenState extends State<SettingsScreen>
             ],
           ),
 
-          _buildCategoryHeader(
+          SettingsCategoryHeader(
             title: 'AUTOMATION',
             subtitle:
                 'Accessibility, overlay, Shizuku, and Android permissions',
             icon: Icons.touch_app_rounded,
           ),
           // Accessibility Screen Control Card
-          _buildSettingsCard(
+          SettingsCard(
             icon: Icons.visibility_outlined,
             title: 'Screen Control (Accessibility)',
             subtitle: 'Required to read screen and perform automated clicks',
-            isDark: isDark,
-            children: [_buildAccessibilityCard()],
+            children: [AccessibilityStatusCard(screenAutomationService: widget.screenAutomationService)],
           ),
 
           // 7. Shizuku bridge card
-          _buildSettingsCard(
+          SettingsCard(
             icon: Icons.terminal_rounded,
             title: 'Shizuku bridge',
             subtitle:
                 'Optional privileged commands through user-approved Shizuku',
-            isDark: isDark,
-            children: [_buildShizukuCard()],
+            children: [ShizukuStatusCard(
+                      shizukuService: widget.shizukuService,
+                      onCheckAgain: () async {
+                        await widget.shizukuService.checkAvailability();
+                        if (mounted) setState(() {});
+                      },
+                      onRequestPermission: () async {
+                        await widget.shizukuService.requestPermission();
+                        if (mounted) setState(() {});
+                      },
+                    )],
           ),
 
           // 8. System Permissions Card
-          _buildSettingsCard(
+          SettingsCard(
             icon: Icons.security_outlined,
             title: 'App Permissions',
             subtitle: 'Required for automation, microphone, and contacts',
-            isDark: isDark,
             children: _buildPermissionTiles(),
           ),
 
-          _buildCategoryHeader(
+          SettingsCategoryHeader(
             title: 'PRIVACY',
             subtitle:
                 'History, credentials, telemetry, and diagnostic visibility',
             icon: Icons.shield_outlined,
           ),
-          _buildSettingsCard(
+          SettingsCard(
             icon: Icons.lock_outline_rounded,
             title: 'Data and credentials',
             subtitle:
                 'Privacy controls use existing storage and diagnostic services',
-            isDark: isDark,
             children: [
-              _buildCapabilityAvailabilityTile(
+              CapabilityAvailabilityTile(
                 icon: Icons.key_outlined,
                 title: 'Credential management',
                 description:
                     'Provider keys remain in the existing secure credential path.',
               ),
               _buildMemoryManager(),
-              _buildCapabilityAvailabilityTile(
+              CapabilityAvailabilityTile(
                 icon: Icons.history_rounded,
                 title: 'Chat history',
                 description:
                     'Conversation persistence remains controlled by ChatHistoryService and is separate from editable memories.',
               ),
-              _buildCapabilityAvailabilityTile(
+              CapabilityAvailabilityTile(
                 icon: Icons.analytics_outlined,
                 title: 'Telemetry and diagnostic data',
                 description:
@@ -1658,11 +1500,10 @@ class _SettingsScreenState extends State<SettingsScreen>
             ],
           ),
           // Task history is the existing persisted execution-log surface.
-          _buildSettingsCard(
+          SettingsCard(
             icon: Icons.history_outlined,
             title: 'Execution logs',
             subtitle: 'View history of tasks and token analytics',
-            isDark: isDark,
             children: [
               ListTile(
                 contentPadding: EdgeInsets.zero,
@@ -1683,32 +1524,30 @@ class _SettingsScreenState extends State<SettingsScreen>
             ],
           ),
 
-          _buildCategoryHeader(
+          SettingsCategoryHeader(
             title: 'DEVELOPER',
             subtitle:
                 'Live execution diagnostics and controlled self-development tools',
             icon: Icons.developer_mode_rounded,
           ),
           // Live Developer Mode Card
-          _buildSettingsCard(
+          SettingsCard(
             icon: Icons.developer_mode_outlined,
             title: 'Developer Mode',
             subtitle: 'Live, privacy-sanitized task execution diagnostics',
-            isDark: isDark,
             children: [_buildDeveloperModeCard()],
           ),
 
-          _buildCategoryHeader(
+          SettingsCategoryHeader(
             title: 'ABOUT',
             subtitle: 'Version, build information, credits, and project links',
             icon: Icons.info_outline_rounded,
           ),
           // About / Links Card
-          _buildSettingsCard(
+          SettingsCard(
             icon: Icons.info_outline_rounded,
             title: 'About Agent Cypher',
             subtitle: 'Version 1.0.0 - An Assistant for Sumair',
-            isDark: isDark,
             children: [
               ListTile(
                 contentPadding: EdgeInsets.zero,
@@ -2619,137 +2458,5 @@ class _SettingsScreenState extends State<SettingsScreen>
     }
 
     return list;
-  }
-
-  Widget _buildShizukuCard() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  widget.shizukuService.isAvailable
-                      ? Icons.link
-                      : Icons.link_off,
-                  color: widget.shizukuService.isAvailable
-                      ? Colors.green
-                      : Colors.grey,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  widget.shizukuService.isAvailable
-                      ? 'Shizuku is running'
-                      : 'Shizuku not detected',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: widget.shizukuService.isAvailable
-                        ? Colors.green
-                        : Colors.grey,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            if (!widget.shizukuService.isAvailable) ...[
-              const Text(
-                '1. Install Shizuku from Play Store\n'
-                '2. Open Shizuku and start it via Wireless Debugging\n'
-                '3. Come back here and tap "Check Again"',
-                style: TextStyle(fontSize: 13),
-              ),
-              const SizedBox(height: 12),
-              OutlinedButton(
-                onPressed: () async {
-                  await widget.shizukuService.checkAvailability();
-                  if (mounted) setState(() {});
-                },
-                child: const Text('Check Again'),
-              ),
-            ] else if (!widget.shizukuService.hasPermission) ...[
-              OutlinedButton(
-                onPressed: () async {
-                  await widget.shizukuService.requestPermission();
-                  if (mounted) setState(() {});
-                },
-                child: const Text('Grant Shizuku Permission'),
-              ),
-            ] else ...[
-              Row(
-                children: [
-                  const Icon(Icons.check_circle, color: Colors.green, size: 16),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Permission granted — ADB commands available',
-                    style: TextStyle(color: Colors.green[700], fontSize: 13),
-                  ),
-                ],
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAccessibilityCard() {
-    return FutureBuilder<bool>(
-      future: widget.screenAutomationService.isServiceRunning(),
-      builder: (context, snapshot) {
-        final isRunning = snapshot.data ?? false;
-
-        return Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      isRunning ? Icons.visibility : Icons.visibility_off,
-                      color: isRunning ? Colors.green : Colors.grey,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      isRunning
-                          ? 'Screen Control is active'
-                          : 'Screen Control is disabled',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: isRunning ? Colors.green : Colors.grey,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                if (!isRunning) ...[
-                  const Text(
-                    'Tap below to open Accessibility Settings, then find "Agent Cypher Screen Control" and enable it.',
-                    style: TextStyle(fontSize: 13),
-                  ),
-                  const SizedBox(height: 12),
-                  OutlinedButton.icon(
-                    onPressed: () async {
-                      await widget.screenAutomationService
-                          .openAccessibilitySettings();
-                    },
-                    icon: const Icon(Icons.settings),
-                    label: const Text('Open Accessibility Settings'),
-                  ),
-                ] else ...[
-                  Text(
-                    'Can read screen, tap, scroll, and type in other apps',
-                    style: TextStyle(color: Colors.green[700], fontSize: 13),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        );
-      },
-    );
   }
 }
