@@ -457,6 +457,141 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
+  Future<void> _finishRequest(int revision) async {
+    if (!_isCurrentRevision(revision)) return;
+    setState(() => _isLoading = false);
+    _scrollToBottom();
+    unawaited(
+      _updateOverlayState().catchError((error) {
+        developer.log(
+          'Overlay state update failed: $error',
+          name: 'AgentCypher',
+        );
+      }),
+    );
+  }
+
+  Future<void> _handleImageGeneration(
+    String prompt,
+    int revision,
+    bool requestFromVoice,
+  ) async {
+    try {
+      final generated = await _aiService.generateImage(prompt);
+      if (!_isCurrentRevision(revision)) return;
+      final imageResponse = ChatMessage(
+        role: 'assistant',
+        content: generated.revisedPrompt == null
+            ? 'Generated image.'
+            : 'Generated image.\n\n_${generated.revisedPrompt}_',
+        imageUrl: generated.imageUrl,
+        status: 'complete',
+      );
+      setState(() => _messages.add(imageResponse));
+      unawaited(
+        _voiceService.speakResponse(
+          imageResponse.content,
+          fromVoice: requestFromVoice,
+          responseId: imageResponse.id,
+        ),
+      );
+      await _saveSession(revision: revision);
+    } catch (error) {
+      if (_isCurrentRevision(revision)) {
+        setState(() {
+          _messages.add(
+            ChatMessage(
+              role: 'assistant',
+              content:
+                  'Image generation unavailable: ${error.toString().replaceFirst('Exception: ', '')}',
+              status: 'failed',
+            ),
+          );
+        });
+        await _saveSession(revision: revision);
+      }
+    } finally {
+      await _finishRequest(revision);
+    }
+  }
+
+  Future<void> _handleWebResearch(
+    String prompt,
+    List<AttachmentReference> selectedAttachments,
+    int revision,
+    bool requestFromVoice,
+  ) async {
+    _sendOverlayOrbState(
+      state: 'processing',
+      label: 'Researching online',
+      detail: 'Retrieving public sources',
+      mode: 'chat',
+    );
+    try {
+      final report = await _researchReportService.createReport(
+        goal: prompt,
+        attachments: selectedAttachments,
+      );
+      final artifact = await _researchReportService.exportReport(report);
+      if (!_isCurrentRevision(revision)) return;
+      final responseBuffer = StringBuffer(report.toMarkdown());
+      if (artifact != null) {
+        responseBuffer
+          ..writeln()
+          ..writeln(
+            '**Report artifact:** `${artifact.name}` is available in Unified Task Workspace for viewing, copying, exporting, or sharing.',
+          );
+      }
+      final researchMessage = ChatMessage(
+        role: 'assistant',
+        content: responseBuffer.toString().trim(),
+        status: 'complete',
+      );
+      setState(() => _messages.add(researchMessage));
+      _sendOverlayOrbState(
+        state: 'complete',
+        label: 'Research complete',
+        detail:
+            '${report.sourceCount} public sources found; report status ${report.status}',
+        mode: 'chat',
+      );
+      unawaited(
+        _voiceService.speakResponse(
+          researchMessage.content,
+          fromVoice: requestFromVoice,
+          responseId: researchMessage.id,
+        ),
+      );
+      await _saveSession(revision: revision);
+    } catch (error) {
+      if (_isCurrentRevision(revision)) {
+        final researchError = ChatMessage(
+          role: 'assistant',
+          content: 'Web research failed: '
+              '${error.toString().replaceFirst('Exception: ', '')}',
+          status: 'failed',
+        );
+        setState(() => _messages.add(researchError));
+        _sendOverlayOrbState(
+          state: 'error',
+          label: 'Research failed',
+          detail: error.toString(),
+          mode: 'chat',
+        );
+        unawaited(
+          _voiceService.speakResponse(
+            researchError.content,
+            fromVoice: requestFromVoice,
+            responseId: researchError.id,
+          ),
+        );
+        await _saveSession(revision: revision);
+      }
+    } finally {
+      await _finishRequest(revision);
+    }
+  }
+
   Future<void> _sendMessage(
     String text, {
     bool displayUserMessage = true,
@@ -518,132 +653,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (!_isCurrentRevision(revision)) return;
 
     if (_aiService.isImageGenerationRequest(prompt)) {
-      try {
-        final generated = await _aiService.generateImage(prompt);
-        if (!_isCurrentRevision(revision)) return;
-        final imageResponse = ChatMessage(
-          role: 'assistant',
-          content: generated.revisedPrompt == null
-              ? 'Generated image.'
-              : 'Generated image.\n\n_${generated.revisedPrompt}_',
-          imageUrl: generated.imageUrl,
-          status: 'complete',
-        );
-        setState(() => _messages.add(imageResponse));
-        unawaited(
-          _voiceService.speakResponse(
-            imageResponse.content,
-            fromVoice: requestFromVoice,
-            responseId: imageResponse.id,
-          ),
-        );
-        await _saveSession(revision: revision);
-      } catch (error) {
-        if (_isCurrentRevision(revision)) {
-          setState(() {
-            _messages.add(
-              ChatMessage(
-                role: 'assistant',
-                content:
-                    'Image generation unavailable: ${error.toString().replaceFirst('Exception: ', '')}',
-                status: 'failed',
-              ),
-            );
-          });
-          await _saveSession(revision: revision);
-        }
-      } finally {
-        if (_isCurrentRevision(revision)) {
-          setState(() => _isLoading = false);
-          _scrollToBottom();
-          unawaited(
-            _updateOverlayState().catchError((error) {
-              developer.log(
-                'Overlay state update failed: $error',
-                name: 'AgentCypher',
-              );
-            }),
-          );
-        }
-      }
+      await _handleImageGeneration(prompt, revision, requestFromVoice);
       return;
     }
 
     if (_aiService.isWebResearchRequest(prompt)) {
-      _sendOverlayOrbState(
-        state: 'processing',
-        label: 'Researching online',
-        detail: 'Retrieving public sources',
-        mode: 'chat',
-      );
-      try {
-        final report = await _researchReportService.createReport(
-          goal: prompt,
-          attachments: selectedAttachments,
-        );
-        final artifact = await _researchReportService.exportReport(report);
-        if (!_isCurrentRevision(revision)) return;
-        final responseBuffer = StringBuffer(report.toMarkdown());
-        if (artifact != null) {
-          responseBuffer
-            ..writeln()
-            ..writeln(
-              '**Report artifact:** `${artifact.name}` is available in Unified Task Workspace for viewing, copying, exporting, or sharing.',
-            );
-        }
-        final researchMessage = ChatMessage(
-          role: 'assistant',
-          content: responseBuffer.toString().trim(),
-          status: 'complete',
-        );
-        setState(() => _messages.add(researchMessage));
-        _sendOverlayOrbState(
-          state: 'complete',
-          label: 'Research complete',
-          detail:
-              '${report.sourceCount} public sources found; report status ${report.status}',
-          mode: 'chat',
-        );
-        unawaited(
-          _voiceService.speakResponse(
-            researchMessage.content,
-            fromVoice: requestFromVoice,
-            responseId: researchMessage.id,
-          ),
-        );
-        await _saveSession(revision: revision);
-      } catch (error) {
-        if (_isCurrentRevision(revision)) {
-          final failedMessage = ChatMessage(
-            role: 'assistant',
-            content:
-                'Web research failed: ${error.toString().replaceFirst('Exception: ', '')}',
-            status: 'failed',
-          );
-          setState(() => _messages.add(failedMessage));
-          _sendOverlayOrbState(
-            state: 'error',
-            label: 'Research failed',
-            detail: 'No source result was returned',
-            mode: 'chat',
-          );
-          await _saveSession(revision: revision);
-        }
-      } finally {
-        if (_isCurrentRevision(revision)) {
-          setState(() => _isLoading = false);
-          _scrollToBottom();
-          unawaited(
-            _updateOverlayState().catchError((error) {
-              developer.log(
-                'Overlay state update failed: $error',
-                name: 'AgentCypher',
-                error: error,
-              );
-            }),
-          );
-        }
-      }
+      await _handleWebResearch(prompt, selectedAttachments, revision, requestFromVoice);
       return;
     }
 
@@ -873,18 +888,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             : accumulated,
       );
     } finally {
-      if (_isCurrentRevision(revision)) {
-        setState(() => _isLoading = false);
-        _scrollToBottom();
-        unawaited(
-          _updateOverlayState().catchError((error) {
-            developer.log(
-              'Overlay state update failed: $error',
-              name: 'AgentCypher',
-            );
-          }),
-        );
-      }
+      await _finishRequest(revision);
     }
   }
 
